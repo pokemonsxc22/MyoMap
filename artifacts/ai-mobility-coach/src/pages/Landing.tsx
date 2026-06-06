@@ -48,7 +48,7 @@ export default function Landing() {
             variant="default" 
             className="font-semibold bg-primary hover:bg-primary/90 text-white border-0"
             data-testid="button-nav-cta"
-            onClick={() => document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={() => document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' })}
           >
             Get Access
           </Button>
@@ -85,7 +85,7 @@ export default function Landing() {
                 size="lg" 
                 className="w-full sm:w-auto text-lg h-14 px-8 font-bold bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)]"
                 data-testid="button-hero-cta"
-                onClick={() => document.getElementById('waitlist')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 Start Your Recovery
                 <ChevronRight className="w-5 h-5 ml-2" />
@@ -193,7 +193,7 @@ export default function Landing() {
       </section>
 
       {/* Waitlist / CTA */}
-      <section id="waitlist" className="py-32 px-6 relative">
+      <section id="get-started" className="py-32 px-6 relative">
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <div className="p-12 md:p-16 rounded-3xl bg-card border border-primary/20 shadow-[0_0_50px_-12px_rgba(37,99,235,0.15)] relative overflow-hidden">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 blur-[100px] pointer-events-none"></div>
