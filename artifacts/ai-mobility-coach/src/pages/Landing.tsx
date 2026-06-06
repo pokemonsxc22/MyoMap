@@ -200,7 +200,7 @@ export default function Landing() {
             
             <h2 className="text-4xl font-black mb-4 relative z-10">Unlock Your Body's Potential</h2>
             <p className="text-xl text-muted-foreground mb-8 relative z-10">
-              Join 2,000+ athletes already on the waitlist for early access to the AI Mobility Coach.
+              Be one of the first to try AI Mobility Coach — limited early access spots available.
             </p>
 
             <form onSubmit={handleSubmit} className="max-w-md mx-auto relative z-10" data-testid="form-waitlist">
