@@ -1,24 +1,11 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { Activity, Cpu, LineChart, MessageSquare, Target, Zap, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export default function Landing() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      setSubmitted(true);
-      setEmail("");
-    }
-  };
-
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
   };
 
   const staggerContainer = {
@@ -48,7 +35,7 @@ export default function Landing() {
             variant="default" 
             className="font-semibold bg-primary hover:bg-primary/90 text-white border-0"
             data-testid="button-nav-cta"
-            onClick={() => document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={() => { window.location.href = 'intake.html'; }}
           >
             Get Access
           </Button>
@@ -85,7 +72,7 @@ export default function Landing() {
                 size="lg" 
                 className="w-full sm:w-auto text-lg h-14 px-8 font-bold bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)]"
                 data-testid="button-hero-cta"
-                onClick={() => document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => { window.location.href = 'intake.html'; }}
               >
                 Start Your Recovery
                 <ChevronRight className="w-5 h-5 ml-2" />
@@ -188,52 +175,6 @@ export default function Landing() {
                 </div>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Waitlist / CTA */}
-      <section id="get-started" className="py-32 px-6 relative">
-        <div className="max-w-3xl mx-auto text-center relative z-10">
-          <div className="p-12 md:p-16 rounded-3xl bg-card border border-primary/20 shadow-[0_0_50px_-12px_rgba(37,99,235,0.15)] relative overflow-hidden">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 blur-[100px] pointer-events-none"></div>
-            
-            <h2 className="text-4xl font-black mb-4 relative z-10">Unlock Your Body's Potential</h2>
-            <p className="text-xl text-muted-foreground mb-8 relative z-10">
-              Be one of the first to try AI Mobility Coach — limited early access spots available.
-            </p>
-
-            <form onSubmit={handleSubmit} className="max-w-md mx-auto relative z-10" data-testid="form-waitlist">
-              {submitted ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-4 rounded-xl bg-primary/10 border border-primary/30 text-primary font-bold"
-                  data-testid="success-message"
-                >
-                  You're on the list. Keep an eye on your inbox.
-                </motion.div>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Input 
-                    type="email" 
-                    placeholder="Enter your email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-14 bg-background border-border/50 focus-visible:ring-primary text-base"
-                    data-testid="input-email"
-                  />
-                  <Button 
-                    type="submit"
-                    className="h-14 px-8 font-bold bg-primary hover:bg-primary/90 text-white"
-                    data-testid="button-submit-email"
-                  >
-                    Get Early Access
-                  </Button>
-                </div>
-              )}
-            </form>
           </div>
         </div>
       </section>
