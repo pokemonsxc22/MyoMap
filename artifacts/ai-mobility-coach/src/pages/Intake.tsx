@@ -54,6 +54,7 @@ export default function Intake() {
         throw new Error(data.error ?? "Something went wrong. Please try again.");
       }
       sessionStorage.setItem("mobilityRoutine", data.routine);
+      sessionStorage.setItem("mobilityFormData", JSON.stringify(form));
       setLocation("/results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
