@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Activity, ChevronLeft, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import ReactMarkdown from "react-markdown";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 24 },
@@ -16,8 +17,7 @@ const stagger = {
 
 interface Exercise {
   number: string;
-  name: string;
-  description: string;
+  raw: string;
 }
 
 interface ParsedRoutine {
@@ -27,49 +27,37 @@ interface ParsedRoutine {
 
 function parseRoutine(text: string): ParsedRoutine {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  const exerciseLines: string[] = [];
   const rootCauseLines: string[] = [];
-  let foundFirst = false;
+  const exerciseLines: Exercise[] = [];
+  let foundList = false;
 
   for (const line of lines) {
-    if (/^[1-5][.)]\s/.test(line)) {
-      foundFirst = true;
-      exerciseLines.push(line);
-    } else if (!foundFirst) {
+    const match = line.match(/^([1-5])[.)]\s+(.+)$/);
+    if (match) {
+      foundList = true;
+      exerciseLines.push({ number: match[1], raw: match[2] });
+    } else if (!foundList) {
       rootCauseLines.push(line);
     }
   }
 
-  const exercises: Exercise[] = exerciseLines.map((line) => {
-    const match = line.match(/^([1-5])[.)]\s+\*{0,2}([^:*–\-]+?)\*{0,2}[:\s–\-]+(.+)$/);
-    if (match) {
-      return { number: match[1], name: match[2].trim(), description: match[3].trim() };
-    }
-    const fallback = line.replace(/^[1-5][.)]\s+/, "");
-    const colonIdx = fallback.indexOf(":");
-    if (colonIdx > 0) {
-      return {
-        number: line[0],
-        name: fallback.slice(0, colonIdx).replace(/\*+/g, "").trim(),
-        description: fallback.slice(colonIdx + 1).trim(),
-      };
-    }
-    return { number: line[0], name: fallback, description: "" };
-  });
-
-  return { rootCause: rootCauseLines.join(" "), exercises };
+  return {
+    rootCause: rootCauseLines.join("\n\n"),
+    exercises: exerciseLines,
+  };
 }
 
-const PLACEHOLDER_ROOT_CAUSE =
-  "Based on your answers, we'll analyze the likely biomechanical root cause of your pain or tightness here. This section will explain what's happening in plain English — no jargon — so you understand exactly why your body feels the way it does.";
-
-const PLACEHOLDER_EXERCISES: Exercise[] = [
-  { number: "1", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
-  { number: "2", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
-  { number: "3", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
-  { number: "4", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
-  { number: "5", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
-];
+const PLACEHOLDER: ParsedRoutine = {
+  rootCause:
+    "Based on your answers, we'll analyze the likely biomechanical root cause of your pain or tightness here. This section will explain what's happening in plain English — no jargon — so you understand exactly why your body feels the way it does.",
+  exercises: [
+    { number: "1", raw: "**Exercise Name** — A one-sentence description of this corrective exercise and how it helps your specific issue." },
+    { number: "2", raw: "**Exercise Name** — A one-sentence description of this corrective exercise and how it helps your specific issue." },
+    { number: "3", raw: "**Exercise Name** — A one-sentence description of this corrective exercise and how it helps your specific issue." },
+    { number: "4", raw: "**Exercise Name** — A one-sentence description of this corrective exercise and how it helps your specific issue." },
+    { number: "5", raw: "**Exercise Name** — A one-sentence description of this corrective exercise and how it helps your specific issue." },
+  ],
+};
 
 export default function Results() {
   const [, setLocation] = useLocation();
@@ -82,7 +70,7 @@ export default function Results() {
       setParsed(parseRoutine(stored));
       setIsPlaceholder(false);
     } else {
-      setParsed({ rootCause: PLACEHOLDER_ROOT_CAUSE, exercises: PLACEHOLDER_EXERCISES });
+      setParsed(PLACEHOLDER);
       setIsPlaceholder(true);
     }
   }, []);
@@ -112,23 +100,28 @@ export default function Results() {
               Results
             </span>
           </motion.div>
-
           <motion.h1 variants={fadeInUp} className="text-4xl font-black mb-10">
             Your Mobility Assessment
           </motion.h1>
 
           {/* What's Happening in Your Body */}
-          <motion.div
-            variants={fadeInUp}
-            className="mb-8"
-          >
+          <motion.div variants={fadeInUp} className="mb-8">
             <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-4">
               What's Happening in Your Body
             </h2>
             <div className="p-6 rounded-2xl bg-card border border-primary/20">
-              <p className={`leading-relaxed ${isPlaceholder ? "text-muted-foreground/50 italic" : "text-muted-foreground"}`}>
-                {parsed.rootCause}
-              </p>
+              <div className={`leading-relaxed text-sm ${isPlaceholder ? "text-muted-foreground/50 italic" : "text-muted-foreground"}`}>
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    strong: ({ children }) => (
+                      <strong className="font-semibold text-foreground">{children}</strong>
+                    ),
+                  }}
+                >
+                  {parsed.rootCause}
+                </ReactMarkdown>
+              </div>
             </div>
           </motion.div>
 
@@ -137,7 +130,6 @@ export default function Results() {
             <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-4">
               Your 5-Exercise Routine
             </h2>
-
             <motion.div variants={stagger} className="space-y-4">
               {parsed.exercises.map((ex) => (
                 <motion.div
@@ -149,15 +141,19 @@ export default function Results() {
                   <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm">
                     {ex.number}
                   </div>
-                  <div className="min-w-0">
-                    <p className={`font-bold mb-1 ${isPlaceholder ? "text-foreground/30" : ""}`}>
-                      {ex.name}
-                    </p>
-                    {ex.description && (
-                      <p className={`text-sm leading-relaxed ${isPlaceholder ? "text-muted-foreground/30 italic" : "text-muted-foreground"}`}>
-                        {ex.description}
-                      </p>
-                    )}
+                  <div className={`min-w-0 text-sm leading-relaxed pt-1 ${isPlaceholder ? "text-muted-foreground/40 italic" : "text-muted-foreground"}`}>
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p>{children}</p>,
+                        strong: ({ children }) => (
+                          <strong className={`font-bold block mb-1 ${isPlaceholder ? "text-foreground/30" : "text-foreground"}`}>
+                            {children}
+                          </strong>
+                        ),
+                      }}
+                    >
+                      {ex.raw}
+                    </ReactMarkdown>
                   </div>
                 </motion.div>
               ))}
