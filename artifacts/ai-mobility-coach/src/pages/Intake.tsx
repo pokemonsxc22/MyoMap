@@ -11,7 +11,8 @@ const fadeInUp = {
 
 export default function Intake() {
   const [, setLocation] = useLocation();
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     painArea: "",
     duration: "",
@@ -28,44 +29,31 @@ export default function Intake() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json() as { routine?: string; error?: string };
+      if (!res.ok || !data.routine) {
+        throw new Error(data.error ?? "Something went wrong. Please try again.");
+      }
+      sessionStorage.setItem("mobilityRoutine", data.routine);
+      setLocation("/results");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isValid =
     form.painArea !== "" && form.duration !== "" && form.goal !== "";
-
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
-        <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full pointer-events-none" />
-        <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeInUp}
-          className="max-w-lg w-full text-center relative z-10"
-        >
-          <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-6">
-            <Activity className="w-8 h-8 text-primary" />
-          </div>
-          <h2 className="text-3xl font-black mb-4">Your routine is being built.</h2>
-          <p className="text-muted-foreground text-lg mb-8">
-            We're analyzing your responses and crafting a personalized corrective exercise plan. Check back shortly.
-          </p>
-          <Button
-            onClick={() => setLocation("/")}
-            variant="outline"
-            className="border-border/50 text-muted-foreground hover:text-foreground"
-            data-testid="button-back-home"
-          >
-            Back to home
-          </Button>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background text-foreground px-6 py-16 relative">
@@ -208,15 +196,33 @@ export default function Intake() {
               </select>
             </div>
 
+            {error && (
+              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm font-medium" data-testid="error-message">
+                {error}
+              </div>
+            )}
+
             <Button
               type="submit"
-              disabled={!isValid}
+              disabled={!isValid || loading}
               size="lg"
               className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)] disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="button-submit"
             >
-              Get My Personalized Routine
-              <ChevronRight className="w-5 h-5 ml-2" />
+              {loading ? (
+                <span className="flex items-center gap-3">
+                  <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Building your routine...
+                </span>
+              ) : (
+                <>
+                  Get My Personalized Routine
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </>
+              )}
             </Button>
           </form>
         </motion.div>
