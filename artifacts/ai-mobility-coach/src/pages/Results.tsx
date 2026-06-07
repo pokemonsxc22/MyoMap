@@ -11,19 +11,24 @@ const fadeInUp = {
 
 const stagger = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
 };
+
+interface Exercise {
+  number: string;
+  name: string;
+  description: string;
+}
 
 interface ParsedRoutine {
   rootCause: string;
-  exercises: { number: string; name: string; description: string }[];
+  exercises: Exercise[];
 }
 
 function parseRoutine(text: string): ParsedRoutine {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  const exerciseLines: typeof lines = [];
-  const rootCauseLines: typeof lines = [];
+  const exerciseLines: string[] = [];
+  const rootCauseLines: string[] = [];
   let foundFirst = false;
 
   for (const line of lines) {
@@ -35,8 +40,8 @@ function parseRoutine(text: string): ParsedRoutine {
     }
   }
 
-  const exercises = exerciseLines.map((line) => {
-    const match = line.match(/^([1-5])[.)]\s+\*{0,2}([^:*–-]+?)\*{0,2}[:\s–-]+(.+)$/);
+  const exercises: Exercise[] = exerciseLines.map((line) => {
+    const match = line.match(/^([1-5])[.)]\s+\*{0,2}([^:*–\-]+?)\*{0,2}[:\s–\-]+(.+)$/);
     if (match) {
       return { number: match[1], name: match[2].trim(), description: match[3].trim() };
     }
@@ -52,28 +57,37 @@ function parseRoutine(text: string): ParsedRoutine {
     return { number: line[0], name: fallback, description: "" };
   });
 
-  return {
-    rootCause: rootCauseLines.join(" "),
-    exercises,
-  };
+  return { rootCause: rootCauseLines.join(" "), exercises };
 }
+
+const PLACEHOLDER_ROOT_CAUSE =
+  "Based on your answers, we'll analyze the likely biomechanical root cause of your pain or tightness here. This section will explain what's happening in plain English — no jargon — so you understand exactly why your body feels the way it does.";
+
+const PLACEHOLDER_EXERCISES: Exercise[] = [
+  { number: "1", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
+  { number: "2", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
+  { number: "3", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
+  { number: "4", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
+  { number: "5", name: "Exercise Name", description: "A one-sentence description of this corrective exercise and how it helps your specific issue." },
+];
 
 export default function Results() {
   const [, setLocation] = useLocation();
-  const [routine, setRoutine] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedRoutine | null>(null);
+  const [isPlaceholder, setIsPlaceholder] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("mobilityRoutine");
-    if (!stored) {
-      setLocation("/intake");
-      return;
+    if (stored) {
+      setParsed(parseRoutine(stored));
+      setIsPlaceholder(false);
+    } else {
+      setParsed({ rootCause: PLACEHOLDER_ROOT_CAUSE, exercises: PLACEHOLDER_EXERCISES });
+      setIsPlaceholder(true);
     }
-    setRoutine(stored);
-    setParsed(parseRoutine(stored));
-  }, [setLocation]);
+  }, []);
 
-  if (!routine || !parsed) return null;
+  if (!parsed) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground px-6 py-16 relative">
@@ -91,39 +105,40 @@ export default function Results() {
         </button>
 
         <motion.div initial="hidden" animate="visible" variants={stagger}>
+          {/* Header */}
           <motion.div variants={fadeInUp} className="flex items-center gap-2 mb-2">
             <Activity className="w-5 h-5 text-primary" />
             <span className="text-sm font-semibold text-primary tracking-widest uppercase">
-              Your Personalized Routine
+              Results
             </span>
           </motion.div>
 
           <motion.h1 variants={fadeInUp} className="text-4xl font-black mb-10">
-            Here's your recovery plan.
+            Your Mobility Assessment
           </motion.h1>
 
-          {/* Root Cause */}
-          {parsed.rootCause && (
-            <motion.div
-              variants={fadeInUp}
-              className="p-6 rounded-2xl bg-card border border-primary/20 mb-8"
-            >
-              <p className="text-sm font-semibold text-primary tracking-widest uppercase mb-3">
-                Root Cause
+          {/* What's Happening in Your Body */}
+          <motion.div
+            variants={fadeInUp}
+            className="mb-8"
+          >
+            <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-4">
+              What's Happening in Your Body
+            </h2>
+            <div className="p-6 rounded-2xl bg-card border border-primary/20">
+              <p className={`leading-relaxed ${isPlaceholder ? "text-muted-foreground/50 italic" : "text-muted-foreground"}`}>
+                {parsed.rootCause}
               </p>
-              <p className="text-muted-foreground leading-relaxed">{parsed.rootCause}</p>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
 
-          {/* Exercises */}
-          {parsed.exercises.length > 0 && (
+          {/* Your 5-Exercise Routine */}
+          <motion.div variants={fadeInUp}>
+            <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-4">
+              Your 5-Exercise Routine
+            </h2>
+
             <motion.div variants={stagger} className="space-y-4">
-              <motion.p
-                variants={fadeInUp}
-                className="text-sm font-semibold text-primary tracking-widest uppercase mb-2"
-              >
-                Your 5-Exercise Routine
-              </motion.p>
               {parsed.exercises.map((ex) => (
                 <motion.div
                   key={ex.number}
@@ -134,10 +149,12 @@ export default function Results() {
                   <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm">
                     {ex.number}
                   </div>
-                  <div>
-                    <p className="font-bold mb-1">{ex.name}</p>
+                  <div className="min-w-0">
+                    <p className={`font-bold mb-1 ${isPlaceholder ? "text-foreground/30" : ""}`}>
+                      {ex.name}
+                    </p>
                     {ex.description && (
-                      <p className="text-muted-foreground text-sm leading-relaxed">
+                      <p className={`text-sm leading-relaxed ${isPlaceholder ? "text-muted-foreground/30 italic" : "text-muted-foreground"}`}>
                         {ex.description}
                       </p>
                     )}
@@ -145,18 +162,9 @@ export default function Results() {
                 </motion.div>
               ))}
             </motion.div>
-          )}
+          </motion.div>
 
-          {/* Fallback: show raw text if parsing failed */}
-          {parsed.exercises.length === 0 && (
-            <motion.div
-              variants={fadeInUp}
-              className="p-6 rounded-2xl bg-card border border-border/50 whitespace-pre-wrap text-muted-foreground leading-relaxed"
-            >
-              {routine}
-            </motion.div>
-          )}
-
+          {/* Actions */}
           <motion.div variants={fadeInUp} className="mt-10 flex flex-col sm:flex-row gap-3">
             <Button
               onClick={() => {
@@ -168,7 +176,7 @@ export default function Results() {
               data-testid="button-retake"
             >
               <RotateCcw className="w-4 h-4" />
-              Retake assessment
+              {isPlaceholder ? "Take the assessment" : "Retake assessment"}
             </Button>
             <Button
               onClick={() => setLocation("/")}
