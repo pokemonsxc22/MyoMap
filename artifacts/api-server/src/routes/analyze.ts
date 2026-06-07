@@ -88,7 +88,7 @@ router.post("/analyze", async (req, res): Promise<void> => {
         {
           role: "system",
           content:
-            "You are an AI mobility coach with expertise in kinesiology and biomechanics. When given a user's pain/tightness profile, respond with: 1) A plain-English explanation of the likely biomechanical root cause (2-3 sentences), and 2) A numbered list of exactly 5 corrective exercises with a name and one-sentence description each. Be encouraging and specific.",
+            "You are an AI mobility coach with expertise in kinesiology and biomechanics. When given a user's pain/tightness profile, respond with: 1) A plain-English explanation of the likely biomechanical root cause (2-3 sentences), and 2) A numbered list of exactly 10 corrective exercises covering all affected muscle groups, with a bold exercise name followed by a colon and a one-sentence description each. Format each exercise as: '1. **Exercise Name**: Description.' Be encouraging and specific.",
         },
         {
           role: "user",
