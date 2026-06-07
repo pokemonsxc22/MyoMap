@@ -1,0 +1,23 @@
+Change all CTA buttons (like 'Get Started' or 'Join Waitlist') so they link to /intake instead of triggering an email form
+
+After that, create a new page at /intake with a simple form that asks:
+
+Where do you feel pain or tightness? (dropdown: lower back, neck/shoulders, hips, knees, hamstrings)
+How long have you had this issue? (dropdown: just started, a few weeks, months+)
+What makes it worse? (checkboxes: sitting too long, after workouts, in the morning, no clear pattern)
+What's your main goal? (dropdown: reduce pain, improve flexibility, move better for sports, general health)
+A submit button that says 'Get My Personalized Routine'
+
+The form should match the existing dark theme and blue accents of the landing page."
+
+This gets you a working intake form in one session. Once that's live, the next step after is connecting it to Groq to generate actual AI responses.
+Want me to refine that prompt, or are you ready to paste it into Replit?You said: there is still a get access buttonthere is still a get access button4:24 PMClaude responded: That's one of the buttons that needs to point to /intake.Identified lingering button requiring redirect adjustmentIdentified lingering button requiring redirect adjustmentThat's one of the buttons that needs to point to /intake. Go into Replit and tell the AI agent:
+
+"Change the 'Get Access' button so it links to /intake instead of whatever it's currently doing."
+
+If there are multiple buttons on the page (like one in the nav and one in the hero section), add: "Do this for every 'Get Access' button on the page."
+Once that's done, paste the full intake form prompt from my last message so you build both fixes in the same session. Want me to combine it all into one single prompt you can paste?You said: how about start now instead of get accesshow about start now instead of get access4:24 PMClaude responded: Same fix, just different button text.Recognized button text preference adjustment requestRecognized button text preference adjustment requestSame fix, just different button text. Tell the Replit agent:
+
+"Change the 'Start Now' button so it links to /intake instead of whatever it's currently doing. Do this for every 'Start Now' button on the page."
+
+Then follow it up with the intake form prompt from before. Want me to combine both into one paste-ready prompt?

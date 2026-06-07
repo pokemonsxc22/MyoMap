@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
 import { Activity, Cpu, LineChart, MessageSquare, Target, Zap, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 export default function Landing() {
+  const [, setLocation] = useLocation();
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
@@ -35,9 +37,9 @@ export default function Landing() {
             variant="default" 
             className="font-semibold bg-primary hover:bg-primary/90 text-white border-0"
             data-testid="button-nav-cta"
-            onClick={() => { window.location.href = 'intake.html'; }}
+            onClick={() => setLocation('/intake')}
           >
-            Get Access
+            Start Now
           </Button>
         </div>
       </nav>
@@ -72,9 +74,9 @@ export default function Landing() {
                 size="lg" 
                 className="w-full sm:w-auto text-lg h-14 px-8 font-bold bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)]"
                 data-testid="button-hero-cta"
-                onClick={() => { window.location.href = 'intake.html'; }}
+                onClick={() => setLocation('/intake')}
               >
-                Start Your Recovery
+                Start Now
                 <ChevronRight className="w-5 h-5 ml-2" />
               </Button>
             </motion.div>
