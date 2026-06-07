@@ -9,6 +9,14 @@ const fadeInUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
 };
 
+const SEVERITY_LABELS: Record<number, string> = {
+  1: "Barely noticeable",
+  2: "Mild",
+  3: "Moderate",
+  4: "Quite painful",
+  5: "Very painful",
+};
+
 export default function Intake() {
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
@@ -18,6 +26,8 @@ export default function Intake() {
     duration: "",
     worsens: [] as string[],
     goal: "",
+    severity: 0,
+    sex: "",
   });
 
   const handleCheckbox = (value: string) => {
@@ -39,7 +49,7 @@ export default function Intake() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json() as { routine?: string; error?: string };
+      const data = (await res.json()) as { routine?: string; error?: string };
       if (!res.ok || !data.routine) {
         throw new Error(data.error ?? "Something went wrong. Please try again.");
       }
@@ -53,7 +63,14 @@ export default function Intake() {
   };
 
   const isValid =
-    form.painArea !== "" && form.duration !== "" && form.goal !== "";
+    form.painArea !== "" &&
+    form.duration !== "" &&
+    form.goal !== "" &&
+    form.severity > 0 &&
+    form.sex !== "";
+
+  const selectClass =
+    "w-full h-12 px-4 rounded-xl bg-background border border-border/60 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none";
 
   return (
     <div className="min-h-screen bg-background text-foreground px-6 py-16 relative">
@@ -79,14 +96,14 @@ export default function Intake() {
           </div>
           <h1 className="text-4xl font-black mb-2">Tell us about your body.</h1>
           <p className="text-muted-foreground text-lg mb-10">
-            Answer four quick questions so we can build your personalized corrective routine.
+            Answer six quick questions so we can build your personalized corrective routine.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-8" data-testid="form-intake">
-            {/* Q1 */}
+            {/* Q1 — Pain area */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 1 of 4
+                Question 1 of 6
               </label>
               <p className="text-xl font-bold mb-4">Where do you feel pain or tightness?</p>
               <select
@@ -94,21 +111,27 @@ export default function Intake() {
                 onChange={(e) => setForm({ ...form, painArea: e.target.value })}
                 required
                 data-testid="select-pain-area"
-                className="w-full h-12 px-4 rounded-xl bg-background border border-border/60 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none"
+                className={selectClass}
               >
-                <option value="" disabled>Select an area...</option>
+                <option value="" disabled>Select a muscle group...</option>
                 <option value="lower-back">Lower back</option>
+                <option value="mid-back">Mid back</option>
+                <option value="upper-back">Upper back</option>
                 <option value="neck-shoulders">Neck / Shoulders</option>
-                <option value="hips">Hips</option>
-                <option value="knees">Knees</option>
+                <option value="chest">Chest</option>
+                <option value="arms">Arms</option>
+                <option value="abs-core">Abs / Core</option>
+                <option value="quads">Quads</option>
                 <option value="hamstrings">Hamstrings</option>
+                <option value="calves">Calves</option>
+                <option value="knees">Knees</option>
               </select>
             </div>
 
-            {/* Q2 */}
+            {/* Q2 — Duration */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 2 of 4
+                Question 2 of 6
               </label>
               <p className="text-xl font-bold mb-4">How long have you had this issue?</p>
               <select
@@ -116,7 +139,7 @@ export default function Intake() {
                 onChange={(e) => setForm({ ...form, duration: e.target.value })}
                 required
                 data-testid="select-duration"
-                className="w-full h-12 px-4 rounded-xl bg-background border border-border/60 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none"
+                className={selectClass}
               >
                 <option value="" disabled>Select a duration...</option>
                 <option value="just-started">Just started</option>
@@ -125,10 +148,41 @@ export default function Intake() {
               </select>
             </div>
 
-            {/* Q3 */}
+            {/* Q3 — Severity */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 3 of 4
+                Question 3 of 6
+              </label>
+              <p className="text-xl font-bold mb-2">How severe is your pain or tightness?</p>
+              <p className="text-sm text-muted-foreground mb-6">
+                1 = Barely noticeable &nbsp;·&nbsp; 3 = Moderate &nbsp;·&nbsp; 5 = Very painful
+              </p>
+              <div className="flex gap-3" data-testid="severity-scale">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setForm({ ...form, severity: n })}
+                    data-testid={`severity-${n}`}
+                    className={`flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border font-black text-xl transition-all ${
+                      form.severity === n
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                    }`}
+                  >
+                    {n}
+                    <span className="text-[10px] font-semibold tracking-wide uppercase opacity-70 leading-tight text-center">
+                      {SEVERITY_LABELS[n]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Q4 — What makes it worse */}
+            <div className="p-6 rounded-2xl bg-card border border-border/50">
+              <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
+                Question 4 of 6
               </label>
               <p className="text-xl font-bold mb-4">What makes it worse?</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -175,10 +229,10 @@ export default function Intake() {
               </div>
             </div>
 
-            {/* Q4 */}
+            {/* Q5 — Main goal */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 4 of 4
+                Question 5 of 6
               </label>
               <p className="text-xl font-bold mb-4">What's your main goal?</p>
               <select
@@ -186,7 +240,7 @@ export default function Intake() {
                 onChange={(e) => setForm({ ...form, goal: e.target.value })}
                 required
                 data-testid="select-goal"
-                className="w-full h-12 px-4 rounded-xl bg-background border border-border/60 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none"
+                className={selectClass}
               >
                 <option value="" disabled>Select a goal...</option>
                 <option value="reduce-pain">Reduce pain</option>
@@ -196,8 +250,42 @@ export default function Intake() {
               </select>
             </div>
 
+            {/* Q6 — Biological sex */}
+            <div className="p-6 rounded-2xl bg-card border border-border/50">
+              <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
+                Question 6 of 6
+              </label>
+              <p className="text-xl font-bold mb-2">What is your biological sex?</p>
+              <p className="text-sm text-muted-foreground mb-5">
+                Used to display an accurate body visual on your results page.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "male", label: "Male" },
+                  { value: "female", label: "Female" },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setForm({ ...form, sex: value })}
+                    data-testid={`sex-${value}`}
+                    className={`py-4 rounded-xl border font-semibold text-base transition-all ${
+                      form.sex === value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {error && (
-              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm font-medium" data-testid="error-message">
+              <div
+                className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm font-medium"
+                data-testid="error-message"
+              >
                 {error}
               </div>
             )}
@@ -212,8 +300,19 @@ export default function Intake() {
               {loading ? (
                 <span className="flex items-center gap-3">
                   <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8z"
+                    />
                   </svg>
                   Building your routine...
                 </span>

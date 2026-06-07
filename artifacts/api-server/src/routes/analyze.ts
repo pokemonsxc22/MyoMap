@@ -4,10 +4,17 @@ const router: IRouter = Router();
 
 const LABELS: Record<string, string> = {
   "lower-back": "lower back",
+  "mid-back": "mid back",
+  "upper-back": "upper back",
   "neck-shoulders": "neck and shoulders",
-  "hips": "hips",
-  "knees": "knees",
+  "chest": "chest",
+  "arms": "arms",
+  "abs-core": "abs / core",
+  "quads": "quads",
   "hamstrings": "hamstrings",
+  "calves": "calves",
+  "knees": "knees",
+  "hips": "hips",
   "just-started": "just started",
   "few-weeks": "a few weeks",
   "months-plus": "months or longer",
@@ -26,11 +33,13 @@ function label(key: string): string {
 }
 
 router.post("/analyze", async (req, res): Promise<void> => {
-  const { painArea, duration, worsens, goal } = req.body as {
+  const { painArea, duration, worsens, goal, severity, sex } = req.body as {
     painArea?: string;
     duration?: string;
     worsens?: string[];
     goal?: string;
+    severity?: number;
+    sex?: string;
   };
 
   if (!painArea || !duration || !goal) {
@@ -50,7 +59,20 @@ router.post("/analyze", async (req, res): Promise<void> => {
       ? worsens.map(label).join(", ")
       : "nothing specific";
 
-  const userMessage = `I have pain or tightness in my ${label(painArea)}. I've had this issue for ${label(duration)}. It gets worse when: ${worsenLabels}. My main goal is to ${label(goal)}.`;
+  const severityText = severity
+    ? `${severity}/5 (${severity <= 1 ? "barely noticeable" : severity === 2 ? "mild" : severity === 3 ? "moderate" : severity === 4 ? "quite painful" : "very painful"})`
+    : "not specified";
+
+  const userMessage = [
+    `I have pain or tightness in my ${label(painArea)}.`,
+    `I've had this issue for ${label(duration)}.`,
+    `Pain severity: ${severityText}.`,
+    `It gets worse when: ${worsenLabels}.`,
+    `My main goal is to ${label(goal)}.`,
+    sex ? `Biological sex: ${sex}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   req.log.info({ painArea, duration, goal }, "Calling Groq API");
 
