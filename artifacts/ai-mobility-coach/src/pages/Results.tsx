@@ -153,13 +153,6 @@ export default function Results() {
               <RotateCcw className="w-3.5 h-3.5" />
               Retake Assessment
             </button>
-            <button
-              onClick={() => setLocation("/visual")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all"
-              data-testid="button-nav-visual"
-            >
-              View Body Visual
-            </button>
           </div>
         </div>
       </nav>
@@ -283,22 +276,15 @@ export default function Results() {
           </motion.div>
 
           {/* Bottom CTA */}
-          <motion.div variants={fadeUp} className="mt-10 pt-6 border-t border-border/30 flex flex-col sm:flex-row gap-3">
+          <motion.div variants={fadeUp} className="mt-10 pt-6 border-t border-border/30">
             <Button
               onClick={() => { sessionStorage.removeItem("mobilityRoutine"); setLocation("/intake"); }}
               variant="outline"
-              className="flex items-center gap-2 border-border/50 flex-1"
+              className="flex items-center gap-2 border-border/50 w-full sm:w-auto"
               data-testid="button-retake"
             >
               <RotateCcw className="w-4 h-4" />
               {isPlaceholder ? "Take the Assessment" : "Retake Assessment"}
-            </Button>
-            <Button
-              onClick={() => setLocation("/visual")}
-              className="bg-primary hover:bg-primary/90 text-white flex-1"
-              data-testid="button-visual"
-            >
-              View Body Visual
             </Button>
           </motion.div>
 
