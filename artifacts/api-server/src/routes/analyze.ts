@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { saveAssessment } from "../lib/supabase";
 
 const router: IRouter = Router();
 
@@ -110,6 +111,16 @@ router.post("/analyze", async (req, res): Promise<void> => {
   };
 
   const routine = data.choices?.[0]?.message?.content ?? "";
+
+  // Save assessment in the background — does not block the response
+  void saveAssessment({
+    pain_location: painArea,
+    duration:      duration ?? null,
+    worsens:       Array.isArray(worsens) ? worsens : null,
+    goal:          goal ?? null,
+    severity:      typeof severity === "number" ? severity : null,
+    gender:        sex ?? null,
+  });
 
   res.json({ routine });
 });
