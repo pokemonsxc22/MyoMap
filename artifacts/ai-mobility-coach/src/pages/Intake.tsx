@@ -257,9 +257,6 @@ export default function Intake() {
                 Question 6 of 6
               </label>
               <p className="text-xl font-bold mb-2">What is your biological sex?</p>
-              <p className="text-sm text-muted-foreground mb-5">
-                Used to display an accurate body visual on your results page.
-              </p>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { value: "male", label: "Male" },

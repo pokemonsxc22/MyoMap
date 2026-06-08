@@ -9,12 +9,22 @@ export function getSupabaseClient(): SupabaseClient | null {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
 
+  logger.info(
+    {
+      supabase_url_set: !!url,
+      supabase_key_set: !!key,
+      supabase_url_prefix: url ? url.slice(0, 30) + "..." : "(not set)",
+    },
+    "Supabase env check"
+  );
+
   if (!url || !key) {
     logger.warn("SUPABASE_URL or SUPABASE_ANON_KEY not set — Supabase writes disabled");
     return null;
   }
 
   _client = createClient(url, key);
+  logger.info("Supabase client initialized");
   return _client;
 }
 
@@ -28,14 +38,29 @@ export interface AssessmentRow {
 }
 
 export async function saveAssessment(row: AssessmentRow): Promise<void> {
-  const client = getSupabaseClient();
-  if (!client) return;
+  try {
+    const client = getSupabaseClient();
+    if (!client) {
+      logger.warn("saveAssessment: no Supabase client, skipping insert");
+      return;
+    }
 
-  const { error } = await client.from("assessments").insert(row);
+    logger.info({ row }, "saveAssessment: attempting insert");
 
-  if (error) {
-    logger.error({ code: error.code, message: error.message }, "Failed to save assessment to Supabase");
-  } else {
-    logger.info({ pain_location: row.pain_location }, "Assessment saved to Supabase");
+    const { data, error, status, statusText } = await client
+      .from("assessments")
+      .insert(row)
+      .select();
+
+    if (error) {
+      logger.error(
+        { code: error.code, message: error.message, details: error.details, hint: error.hint, status, statusText },
+        "saveAssessment: insert failed"
+      );
+    } else {
+      logger.info({ inserted: data, status }, "saveAssessment: insert succeeded");
+    }
+  } catch (err) {
+    logger.error({ err }, "saveAssessment: unexpected exception");
   }
 }

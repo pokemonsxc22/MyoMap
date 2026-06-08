@@ -113,6 +113,7 @@ router.post("/analyze", async (req, res): Promise<void> => {
   const routine = data.choices?.[0]?.message?.content ?? "";
 
   // Save assessment in the background — does not block the response
+  req.log.info({ painArea, duration, goal, severity, sex, worsens }, "Triggering saveAssessment");
   void saveAssessment({
     pain_location: painArea,
     duration:      duration ?? null,
