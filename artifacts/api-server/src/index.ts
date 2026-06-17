@@ -23,4 +23,14 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   logger.info({ SUPABASE_URL: process.env.SUPABASE_URL ?? "(not set)" }, "Env check at startup");
+
+  // Temporary: decode SUPABASE_ANON_KEY JWT and log only the 'role' claim
+  try {
+    const jwt = process.env.SUPABASE_ANON_KEY ?? "";
+    const payloadB64 = jwt.split(".")[1] ?? "";
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8")) as Record<string, unknown>;
+    logger.info({ role: payload["role"] ?? "(missing)" }, "SUPABASE_ANON_KEY JWT role claim");
+  } catch (err) {
+    logger.error({ err }, "Failed to decode SUPABASE_ANON_KEY JWT");
+  }
 });
