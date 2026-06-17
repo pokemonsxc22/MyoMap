@@ -22,4 +22,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  logger.info({ SUPABASE_URL: process.env.SUPABASE_URL ?? "(not set)" }, "Env check at startup");
 });
