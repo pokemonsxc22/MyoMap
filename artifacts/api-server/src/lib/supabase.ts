@@ -47,10 +47,9 @@ export async function saveAssessment(row: AssessmentRow): Promise<void> {
 
     logger.info({ row }, "saveAssessment: attempting insert");
 
-    const { data, error, status, statusText } = await client
+    const { error, status, statusText } = await client
       .from("assessments")
-      .insert(row)
-      .select();
+      .insert(row);
 
     if (error) {
       logger.error(
@@ -58,7 +57,7 @@ export async function saveAssessment(row: AssessmentRow): Promise<void> {
         "saveAssessment: insert failed"
       );
     } else {
-      logger.info({ inserted: data, status }, "saveAssessment: insert succeeded");
+      logger.info({ pain_location: row.pain_location, status }, "saveAssessment: insert succeeded");
     }
   } catch (err) {
     logger.error({ err }, "saveAssessment: unexpected exception");
