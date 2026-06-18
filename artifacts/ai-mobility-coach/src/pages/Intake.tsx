@@ -17,6 +17,8 @@ const SEVERITY_LABELS: Record<number, string> = {
   5: "Very painful",
 };
 
+type YesNo = "yes" | "no" | "";
+
 export default function Intake() {
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,10 @@ export default function Intake() {
     goal: "",
     severity: 0,
     sex: "",
+    sport: "",
+    overheadReach: "" as YesNo,
+    heelsFlat: "" as YesNo,
+    touchToes: "" as YesNo,
   });
 
   const handleCheckbox = (value: string) => {
@@ -68,10 +74,21 @@ export default function Intake() {
     form.duration !== "" &&
     form.goal !== "" &&
     form.severity > 0 &&
-    form.sex !== "";
+    form.sex !== "" &&
+    form.sport !== "" &&
+    form.overheadReach !== "" &&
+    form.heelsFlat !== "" &&
+    form.touchToes !== "";
 
   const selectClass =
     "w-full h-12 px-4 rounded-xl bg-background border border-border/60 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none";
+
+  const yesNoBtn = (field: "overheadReach" | "heelsFlat" | "touchToes", value: YesNo, label: string) =>
+    `py-3 rounded-xl border font-semibold text-base transition-all ${
+      form[field] === value
+        ? "border-primary bg-primary/10 text-primary"
+        : "border-border/50 bg-background text-muted-foreground hover:border-border"
+    }`;
 
   return (
     <div className="min-h-screen bg-background text-foreground px-6 py-16 relative">
@@ -97,14 +114,14 @@ export default function Intake() {
           </div>
           <h1 className="text-4xl font-black mb-2">Tell us about your body.</h1>
           <p className="text-muted-foreground text-lg mb-10">
-            Answer six quick questions so we can build your personalized corrective routine.
+            Answer a few quick questions so we can build your personalized corrective routine.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-8" data-testid="form-intake">
             {/* Q1 — Pain area */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 1 of 6
+                Question 1 of 8
               </label>
               <p className="text-xl font-bold mb-4">Where do you feel pain or tightness?</p>
               <select
@@ -126,13 +143,14 @@ export default function Intake() {
                 <option value="hamstrings">Hamstrings</option>
                 <option value="calves">Calves</option>
                 <option value="knees">Knees</option>
+                <option value="hips">Hips</option>
               </select>
             </div>
 
             {/* Q2 — Duration */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 2 of 6
+                Question 2 of 8
               </label>
               <p className="text-xl font-bold mb-4">How long have you had this issue?</p>
               <select
@@ -152,7 +170,7 @@ export default function Intake() {
             {/* Q3 — Severity */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 3 of 6
+                Question 3 of 8
               </label>
               <p className="text-xl font-bold mb-2">How severe is your pain or tightness?</p>
               <p className="text-sm text-muted-foreground mb-6">
@@ -183,7 +201,7 @@ export default function Intake() {
             {/* Q4 — What makes it worse */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 4 of 6
+                Question 4 of 8
               </label>
               <p className="text-xl font-bold mb-4">What makes it worse?</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -233,7 +251,7 @@ export default function Intake() {
             {/* Q5 — Main goal */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 5 of 6
+                Question 5 of 8
               </label>
               <p className="text-xl font-bold mb-4">What's your main goal?</p>
               <select
@@ -254,9 +272,9 @@ export default function Intake() {
             {/* Q6 — Biological sex */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 6 of 6
+                Question 6 of 8
               </label>
-              <p className="text-xl font-bold mb-2">What is your biological sex?</p>
+              <p className="text-xl font-bold mb-4">What is your biological sex?</p>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { value: "male", label: "Male" },
@@ -276,6 +294,125 @@ export default function Intake() {
                     {label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Q7 — Sport / Main Activity */}
+            <div className="p-6 rounded-2xl bg-card border border-border/50">
+              <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
+                Question 7 of 8
+              </label>
+              <p className="text-xl font-bold mb-2">What is your sport or main activity?</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Helps us tailor exercises to the demands your body faces most often.
+              </p>
+              <select
+                value={form.sport}
+                onChange={(e) => setForm({ ...form, sport: e.target.value })}
+                required
+                data-testid="select-sport"
+                className={selectClass}
+              >
+                <option value="" disabled>Select an activity...</option>
+                <option value="running">Running</option>
+                <option value="basketball">Basketball</option>
+                <option value="weightlifting">Weightlifting</option>
+                <option value="swimming">Swimming</option>
+                <option value="soccer">Soccer</option>
+                <option value="general-fitness">General fitness</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* Q8 — Movement Screen */}
+            <div className="p-6 rounded-2xl bg-card border border-border/50">
+              <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
+                Question 8 of 8
+              </label>
+              <p className="text-xl font-bold mb-2">Quick movement screen</p>
+              <p className="text-sm text-muted-foreground mb-6">
+                Three simple checks that reveal where your body may be restricted.
+              </p>
+
+              <div className="space-y-5">
+                {/* Screen 1 — Overhead reach */}
+                <div data-testid="screen-overhead">
+                  <p className="text-sm font-semibold mb-3">
+                    Can you raise both arms straight overhead without your lower back arching?
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, overheadReach: "yes" })}
+                      data-testid="overhead-yes"
+                      className={yesNoBtn("overheadReach", "yes", "Yes")}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, overheadReach: "no" })}
+                      data-testid="overhead-no"
+                      className={yesNoBtn("overheadReach", "no", "No")}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-border/30" />
+
+                {/* Screen 2 — Squat heels */}
+                <div data-testid="screen-heels">
+                  <p className="text-sm font-semibold mb-3">
+                    When you squat down, do your heels stay flat on the ground?
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, heelsFlat: "yes" })}
+                      data-testid="heels-yes"
+                      className={yesNoBtn("heelsFlat", "yes", "Yes")}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, heelsFlat: "no" })}
+                      data-testid="heels-no"
+                      className={yesNoBtn("heelsFlat", "no", "No")}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-border/30" />
+
+                {/* Screen 3 — Touch toes */}
+                <div data-testid="screen-toes">
+                  <p className="text-sm font-semibold mb-3">
+                    Can you touch your toes without bending your knees?
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, touchToes: "yes" })}
+                      data-testid="toes-yes"
+                      className={yesNoBtn("touchToes", "yes", "Yes")}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, touchToes: "no" })}
+                      data-testid="toes-no"
+                      className={yesNoBtn("touchToes", "no", "No")}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 

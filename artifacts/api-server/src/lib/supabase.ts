@@ -35,6 +35,10 @@ export interface AssessmentRow {
   goal: string | null;
   severity: number | null;
   gender: string | null;
+  sport: string | null;
+  overhead_reach: "yes" | "no" | null;
+  heels_flat: "yes" | "no" | null;
+  touch_toes: "yes" | "no" | null;
 }
 
 export async function saveAssessment(row: AssessmentRow): Promise<void> {
