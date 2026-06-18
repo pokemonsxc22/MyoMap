@@ -17,7 +17,54 @@ const SEVERITY_LABELS: Record<number, string> = {
   5: "Very painful",
 };
 
-type YesNo = "yes" | "no" | "";
+type ScreenAnswer = "yes" | "no";
+
+interface ScreenQuestion {
+  id: string;
+  label: string;
+}
+
+// 1–2 questions shown depending on the selected pain area
+const SCREEN_QUESTIONS: Record<string, ScreenQuestion[]> = {
+  "lower-back": [
+    { id: "heelsFlat", label: "When you squat down, do your heels stay flat on the ground?" },
+    { id: "touchToes",  label: "Can you touch your toes without bending your knees?" },
+  ],
+  "hips": [
+    { id: "heelsFlat", label: "When you squat down, do your heels stay flat on the ground?" },
+    { id: "touchToes",  label: "Can you touch your toes without bending your knees?" },
+  ],
+  "neck-shoulders": [
+    { id: "overheadReach", label: "Can you raise both arms straight overhead without your lower back arching?" },
+  ],
+  "knees": [
+    { id: "kneeCave", label: "Does your knee cave inward when you squat down?" },
+  ],
+  "hamstrings": [
+    { id: "touchToes", label: "Can you touch your toes without bending your knees?" },
+  ],
+  "quads": [
+    { id: "touchToes", label: "Can you touch your toes without bending your knees?" },
+  ],
+  "calves": [
+    { id: "heelsFlat", label: "Can you fully flatten your heels at the bottom of a squat?" },
+  ],
+  "chest": [
+    { id: "shoulderClasp", label: "Can you clasp your hands behind your back — one from over the shoulder and one from below?" },
+  ],
+  "upper-back": [
+    { id: "shoulderClasp", label: "Can you clasp your hands behind your back — one from over the shoulder and one from below?" },
+  ],
+  "mid-back": [
+    { id: "shoulderClasp", label: "Can you clasp your hands behind your back — one from over the shoulder and one from below?" },
+  ],
+  "abs-core": [
+    { id: "plankHold", label: "Can you hold a plank for 30 seconds without your hips sagging?" },
+  ],
+  "arms": [
+    { id: "armOverhead", label: "Can you fully straighten your arm overhead next to your ear?" },
+  ],
+};
 
 export default function Intake() {
   const [, setLocation] = useLocation();
@@ -31,9 +78,7 @@ export default function Intake() {
     severity: 0,
     sex: "",
     sport: "",
-    overheadReach: "" as YesNo,
-    heelsFlat: "" as YesNo,
-    touchToes: "" as YesNo,
+    screen: {} as Record<string, ScreenAnswer>,
   });
 
   const handleCheckbox = (value: string) => {
@@ -43,6 +88,15 @@ export default function Intake() {
         ? prev.worsens.filter((v) => v !== value)
         : [...prev.worsens, value],
     }));
+  };
+
+  const handlePainArea = (value: string) => {
+    // Clear movement screen answers when pain area changes since the questions change
+    setForm((prev) => ({ ...prev, painArea: value, screen: {} }));
+  };
+
+  const handleScreen = (id: string, value: ScreenAnswer) => {
+    setForm((prev) => ({ ...prev, screen: { ...prev.screen, [id]: value } }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +123,11 @@ export default function Intake() {
     }
   };
 
+  const activeQuestions = form.painArea ? (SCREEN_QUESTIONS[form.painArea] ?? []) : [];
+  const screenComplete = activeQuestions.length === 0
+    ? false
+    : activeQuestions.every((q) => form.screen[q.id] !== undefined);
+
   const isValid =
     form.painArea !== "" &&
     form.duration !== "" &&
@@ -76,16 +135,14 @@ export default function Intake() {
     form.severity > 0 &&
     form.sex !== "" &&
     form.sport !== "" &&
-    form.overheadReach !== "" &&
-    form.heelsFlat !== "" &&
-    form.touchToes !== "";
+    screenComplete;
 
   const selectClass =
     "w-full h-12 px-4 rounded-xl bg-background border border-border/60 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors appearance-none";
 
-  const yesNoBtn = (field: "overheadReach" | "heelsFlat" | "touchToes", value: YesNo, label: string) =>
+  const yesNoBtnClass = (qId: string, value: ScreenAnswer) =>
     `py-3 rounded-xl border font-semibold text-base transition-all ${
-      form[field] === value
+      form.screen[qId] === value
         ? "border-primary bg-primary/10 text-primary"
         : "border-border/50 bg-background text-muted-foreground hover:border-border"
     }`;
@@ -126,7 +183,7 @@ export default function Intake() {
               <p className="text-xl font-bold mb-4">Where do you feel pain or tightness?</p>
               <select
                 value={form.painArea}
-                onChange={(e) => setForm({ ...form, painArea: e.target.value })}
+                onChange={(e) => handlePainArea(e.target.value)}
                 required
                 data-testid="select-pain-area"
                 className={selectClass}
@@ -206,10 +263,10 @@ export default function Intake() {
               <p className="text-xl font-bold mb-4">What makes it worse?</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { value: "sitting", label: "Sitting too long" },
+                  { value: "sitting",        label: "Sitting too long" },
                   { value: "after-workouts", label: "After workouts" },
-                  { value: "morning", label: "In the morning" },
-                  { value: "no-pattern", label: "No clear pattern" },
+                  { value: "morning",        label: "In the morning" },
+                  { value: "no-pattern",     label: "No clear pattern" },
                 ].map(({ value, label }) => {
                   const checked = form.worsens.includes(value);
                   return (
@@ -277,7 +334,7 @@ export default function Intake() {
               <p className="text-xl font-bold mb-4">What is your biological sex?</p>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { value: "male", label: "Male" },
+                  { value: "male",   label: "Male" },
                   { value: "female", label: "Female" },
                 ].map(({ value, label }) => (
                   <button
@@ -324,96 +381,50 @@ export default function Intake() {
               </select>
             </div>
 
-            {/* Q8 — Movement Screen */}
+            {/* Q8 — Movement Screen (dynamic) */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
                 Question 8 of 8
               </label>
               <p className="text-xl font-bold mb-2">Quick movement screen</p>
               <p className="text-sm text-muted-foreground mb-6">
-                Three simple checks that reveal where your body may be restricted.
+                A short physical check tailored to your pain area — reveals specific restrictions we'll target in your routine.
               </p>
 
-              <div className="space-y-5">
-                {/* Screen 1 — Overhead reach */}
-                <div data-testid="screen-overhead">
-                  <p className="text-sm font-semibold mb-3">
-                    Can you raise both arms straight overhead without your lower back arching?
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, overheadReach: "yes" })}
-                      data-testid="overhead-yes"
-                      className={yesNoBtn("overheadReach", "yes", "Yes")}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, overheadReach: "no" })}
-                      data-testid="overhead-no"
-                      className={yesNoBtn("overheadReach", "no", "No")}
-                    >
-                      No
-                    </button>
-                  </div>
+              {activeQuestions.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">
+                  Select your pain area above to see your personalised movement check.
+                </p>
+              ) : (
+                <div className="space-y-5" data-testid="movement-screen">
+                  {activeQuestions.map((q, i) => (
+                    <div key={q.id}>
+                      {i > 0 && <div className="border-t border-border/30 mb-5" />}
+                      <p className="text-sm font-semibold mb-3" data-testid={`screen-label-${q.id}`}>
+                        {q.label}
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleScreen(q.id, "yes")}
+                          data-testid={`screen-${q.id}-yes`}
+                          className={yesNoBtnClass(q.id, "yes")}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleScreen(q.id, "no")}
+                          data-testid={`screen-${q.id}-no`}
+                          className={yesNoBtnClass(q.id, "no")}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-
-                <div className="border-t border-border/30" />
-
-                {/* Screen 2 — Squat heels */}
-                <div data-testid="screen-heels">
-                  <p className="text-sm font-semibold mb-3">
-                    When you squat down, do your heels stay flat on the ground?
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, heelsFlat: "yes" })}
-                      data-testid="heels-yes"
-                      className={yesNoBtn("heelsFlat", "yes", "Yes")}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, heelsFlat: "no" })}
-                      data-testid="heels-no"
-                      className={yesNoBtn("heelsFlat", "no", "No")}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="border-t border-border/30" />
-
-                {/* Screen 3 — Touch toes */}
-                <div data-testid="screen-toes">
-                  <p className="text-sm font-semibold mb-3">
-                    Can you touch your toes without bending your knees?
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, touchToes: "yes" })}
-                      data-testid="toes-yes"
-                      className={yesNoBtn("touchToes", "yes", "Yes")}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, touchToes: "no" })}
-                      data-testid="toes-no"
-                      className={yesNoBtn("touchToes", "no", "No")}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             {error && (
@@ -435,19 +446,8 @@ export default function Intake() {
               {loading ? (
                 <span className="flex items-center gap-3">
                   <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8z"
-                    />
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
                   Building your routine...
                 </span>

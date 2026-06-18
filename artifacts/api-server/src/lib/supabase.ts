@@ -29,16 +29,21 @@ export function getSupabaseClient(): SupabaseClient | null {
 }
 
 export interface AssessmentRow {
-  pain_location: string;
-  duration: string | null;
-  worsens: string[] | null;
-  goal: string | null;
-  severity: number | null;
-  gender: string | null;
-  sport: string | null;
+  pain_location:  string;
+  duration:       string | null;
+  worsens:        string[] | null;
+  goal:           string | null;
+  severity:       number | null;
+  gender:         string | null;
+  sport:          string | null;
+  // Movement screen — only the column(s) relevant to the user's pain area are non-null
   overhead_reach: "yes" | "no" | null;
-  heels_flat: "yes" | "no" | null;
-  touch_toes: "yes" | "no" | null;
+  heels_flat:     "yes" | "no" | null;
+  touch_toes:     "yes" | "no" | null;
+  knee_cave:      "yes" | "no" | null;
+  shoulder_clasp: "yes" | "no" | null;
+  plank_hold:     "yes" | "no" | null;
+  arm_overhead:   "yes" | "no" | null;
 }
 
 export async function saveAssessment(row: AssessmentRow): Promise<void> {
