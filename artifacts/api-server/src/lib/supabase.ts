@@ -29,21 +29,15 @@ export function getSupabaseClient(): SupabaseClient | null {
 }
 
 export interface AssessmentRow {
-  session_id:     string | null;
-  pain_location:  string;
-  duration:       string | null;
-  worsens:        string[] | null;
-  goal:           string | null;
-  severity:       number | null;
-  gender:         string | null;
-  sport:          string | null;
-  overhead_reach: "yes" | "no" | null;
-  heels_flat:     "yes" | "no" | null;
-  touch_toes:     "yes" | "no" | null;
-  knee_cave:      "yes" | "no" | null;
-  shoulder_clasp: "yes" | "no" | null;
-  plank_hold:     "yes" | "no" | null;
-  arm_overhead:   "yes" | "no" | null;
+  session_id:    string | null;
+  pain_location: string;
+  duration:      string | null;
+  worsens:       string[] | null;
+  goal:          string | null;
+  severity:      number | null;
+  gender:        string | null;
+  sport:         string | null;
+  screen_json:   Record<string, string> | null; // full movement screen answers keyed by question ID
 }
 
 export async function saveAssessment(row: AssessmentRow): Promise<void> {
@@ -74,14 +68,8 @@ export async function saveAssessment(row: AssessmentRow): Promise<void> {
 }
 
 export interface RetakeRow {
-  retake_overhead_reach:  "yes" | "no" | null;
-  retake_heels_flat:      "yes" | "no" | null;
-  retake_touch_toes:      "yes" | "no" | null;
-  retake_knee_cave:       "yes" | "no" | null;
-  retake_shoulder_clasp:  "yes" | "no" | null;
-  retake_plank_hold:      "yes" | "no" | null;
-  retake_arm_overhead:    "yes" | "no" | null;
-  retake_at:              string;
+  retake_screen_json: Record<string, string>; // full retake answers keyed by question ID
+  retake_at:          string;
 }
 
 export async function saveRetake(sessionId: string, screen: Record<string, "yes" | "no">): Promise<boolean> {
@@ -93,14 +81,8 @@ export async function saveRetake(sessionId: string, screen: Record<string, "yes"
     }
 
     const row: RetakeRow = {
-      retake_overhead_reach: screen["overheadReach"] ?? null,
-      retake_heels_flat:     screen["heelsFlat"]     ?? null,
-      retake_touch_toes:     screen["touchToes"]     ?? null,
-      retake_knee_cave:      screen["kneeCave"]      ?? null,
-      retake_shoulder_clasp: screen["shoulderClasp"] ?? null,
-      retake_plank_hold:     screen["plankHold"]     ?? null,
-      retake_arm_overhead:   screen["armOverhead"]   ?? null,
-      retake_at:             new Date().toISOString(),
+      retake_screen_json: screen,
+      retake_at:          new Date().toISOString(),
     };
 
     logger.info({ sessionId, row }, "saveRetake: attempting update");

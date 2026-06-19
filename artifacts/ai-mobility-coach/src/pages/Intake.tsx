@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { SCREEN_QUESTIONS, type ScreenQuestion } from "@/lib/movementScreen";
+import { SCREEN_QUESTIONS } from "@/lib/movementScreen";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 24 },

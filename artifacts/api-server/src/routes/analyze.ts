@@ -41,11 +41,12 @@ function label(key: string): string {
 }
 
 // Clinical interpretation for each movement screen question.
-// "inverted" means "yes" = the problem exists (e.g. knee does cave in).
+// "inverted" means "yes" = the problem exists (e.g. knee cave, stair pain).
 const SCREEN_CLINICAL: Record<
   string,
   { question: string; failMsg: string; passMsg: string; inverted?: boolean }
 > = {
+  // ── Original ──────────────────────────────────────────────────────────────
   overheadReach: {
     question: "Overhead arm raise without lower back arching",
     passMsg: "PASS",
@@ -65,7 +66,7 @@ const SCREEN_CLINICAL: Record<
     question: "Knee caving inward during squat",
     passMsg: "PASS — no knee valgus observed",
     failMsg: "CONCERN — knee valgus present, suggests weak glutes or tight IT band / TFL",
-    inverted: true, // "yes" means the problem exists
+    inverted: true,
   },
   shoulderClasp: {
     question: "Hands clasped behind back (one over shoulder, one below)",
@@ -81,6 +82,103 @@ const SCREEN_CLINICAL: Record<
     question: "Full arm extension overhead next to ear",
     passMsg: "PASS",
     failMsg: "FAIL — suggests limited shoulder flexion or restricted elbow extension",
+  },
+  // ── New ───────────────────────────────────────────────────────────────────
+  legsTo90: {
+    question: "Lying leg raise to 90° without lower back lifting",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak deep core / hip flexors or limited lumbar stability",
+  },
+  squatParallel: {
+    question: "Squat to parallel without knee cave",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak glutes / abductors or poor hip mobility",
+  },
+  singleLegBalance: {
+    question: "Single-leg balance for 10 seconds",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests poor hip stability, weak glute medius, or proprioception deficit",
+  },
+  headTurn: {
+    question: "Full head rotation left and right without pain",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests restricted cervical mobility or neck muscle tightness",
+  },
+  singleLegSquat: {
+    question: "Single-leg squat without losing balance",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak quad / glute or poor ankle proprioception",
+  },
+  stairsKneePain: {
+    question: "Pain or instability in knee walking down stairs",
+    passMsg: "PASS — no stair pain",
+    failMsg: "CONCERN — stair descent pain suggests patellar tracking issues or weak VMO",
+    inverted: true,
+  },
+  straightLegRaise: {
+    question: "Straight leg raise to 90°",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests hamstring flexibility deficit limiting hip flexion",
+  },
+  standingForwardFold: {
+    question: "Standing forward fold reaching past shins",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests hamstring / posterior chain tightness limiting spinal flexion",
+  },
+  singleLegSquatNoCollapse: {
+    question: "Single-leg squat without knee collapsing inward",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak quad, limited hip strength, or poor knee control",
+  },
+  heelSit: {
+    question: "Kneeling heel sit comfortably",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests limited quad flexibility or restricted knee flexion",
+  },
+  wallSit30: {
+    question: "30-second wall sit without pain",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak quads or patellar irritation under load",
+  },
+  calfRaises10: {
+    question: "10 single-leg calf raises without cramping",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak or tight gastrocnemius / soleus complex",
+  },
+  heelWalk: {
+    question: "Heel walk for 10 steps without difficulty",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests reduced dorsiflexion strength or tibialis anterior weakness",
+  },
+  wallSpine: {
+    question: "Full spine contact against wall",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests thoracic kyphosis or tight hip flexors pulling lumbar off the wall",
+  },
+  wallAngel: {
+    question: "Wall angel without lower back lifting",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests limited thoracic extension, tight lats, or poor shoulder mobility",
+  },
+  legsOff6: {
+    question: "Lifting both legs 6 inches without lower back arching",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak deep core / lower abdominals and poor lumbar bracing",
+  },
+  deadBug: {
+    question: "Dead bug without losing core tension",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests poor motor control and core endurance under anti-rotation load",
+  },
+  elbowBend: {
+    question: "Full elbow flexion (hand to shoulder)",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests limited elbow flexion range or biceps / brachialis restriction",
+  },
+  wallPushup: {
+    question: "Wall pushup without elbow flare",
+    passMsg: "PASS",
+    failMsg: "FAIL — suggests weak serratus anterior or scapular instability",
   },
 };
 
@@ -190,25 +288,17 @@ router.post("/analyze", async (req, res): Promise<void> => {
 
   const routine = data.choices?.[0]?.message?.content ?? "";
 
-  // Map screen dict keys to individual DB columns
-  const s = screen ?? {};
   req.log.info({ painArea, duration, goal, severity, sex, sport }, "Triggering saveAssessment");
   void saveAssessment({
-    session_id:     sessionId ?? null,
-    pain_location:  painArea,
-    duration:       duration ?? null,
-    worsens:        Array.isArray(worsens) ? worsens : null,
-    goal:           goal ?? null,
-    severity:       typeof severity === "number" ? severity : null,
-    gender:         sex ?? null,
-    sport:          sport ?? null,
-    overhead_reach: s["overheadReach"] ?? null,
-    heels_flat:     s["heelsFlat"]     ?? null,
-    touch_toes:     s["touchToes"]     ?? null,
-    knee_cave:      s["kneeCave"]      ?? null,
-    shoulder_clasp: s["shoulderClasp"] ?? null,
-    plank_hold:     s["plankHold"]     ?? null,
-    arm_overhead:   s["armOverhead"]   ?? null,
+    session_id:    sessionId ?? null,
+    pain_location: painArea,
+    duration:      duration ?? null,
+    worsens:       Array.isArray(worsens) ? worsens : null,
+    goal:          goal ?? null,
+    severity:      typeof severity === "number" ? severity : null,
+    gender:        sex ?? null,
+    sport:         sport ?? null,
+    screen_json:   screen && Object.keys(screen).length > 0 ? screen : null,
   });
 
   res.json({ routine });
