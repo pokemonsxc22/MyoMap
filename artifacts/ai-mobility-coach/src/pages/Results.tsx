@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw } from "lucide-react";
+import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
@@ -110,6 +110,47 @@ export default function Results() {
   const [, setLocation] = useLocation();
   const [parsed, setParsed] = useState<ParsedRoutine | null>(null);
   const [isPlaceholder, setIsPlaceholder] = useState(false);
+
+  interface ChatEntry { question: string; answer: string }
+  const [chatInput, setChatInput] = useState("");
+  const [chatThread, setChatThread] = useState<ChatEntry[]>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  const handleFollowup = async () => {
+    const question = chatInput.trim();
+    if (!question || chatLoading) return;
+    setChatInput("");
+    setChatLoading(true);
+    setChatError(null);
+
+    const outgoing = [...chatMessages, { role: "user" as const, content: question }];
+
+    try {
+      const stored = sessionStorage.getItem("mobilityFormData");
+      const formCtx = stored ? (JSON.parse(stored) as Record<string, unknown>) : {};
+
+      const res = await fetch("/api/followup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: outgoing,
+          context: { ...formCtx, routine: sessionStorage.getItem("mobilityRoutine") ?? "" },
+        }),
+      });
+      const data = (await res.json()) as { answer?: string; error?: string };
+      if (!res.ok || !data.answer) throw new Error(data.error ?? "Something went wrong");
+      setChatMessages([...outgoing, { role: "assistant" as const, content: data.answer }]);
+      setChatThread((prev) => [...prev, { question, answer: data.answer! }]);
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   useEffect(() => {
     const stored = sessionStorage.getItem("mobilityRoutine");
@@ -274,6 +315,97 @@ export default function Results() {
               })}
             </motion.div>
           </motion.div>
+
+          {/* ── Follow-Up Chat ── */}
+          {!isPlaceholder && (
+            <motion.div variants={fadeUp} className="mt-10">
+              <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3 flex items-center gap-2">
+                <MessageCircle className="w-3.5 h-3.5" />
+                Ask a Follow-Up Question
+              </h2>
+
+              {/* Thread */}
+              {chatThread.length > 0 && (
+                <div className="space-y-5 mb-4">
+                  {chatThread.map((entry, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-end">
+                        <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/25 text-sm text-foreground">
+                          {entry.question}
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center mt-0.5">
+                          <MessageCircle className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tl-sm bg-card border border-border/50 text-sm text-muted-foreground leading-relaxed">
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                              strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                            }}
+                          >
+                            {entry.answer}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={chatBottomRef} />
+                </div>
+              )}
+
+              {/* Typing indicator */}
+              {chatLoading && (
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
+                    <MessageCircle className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div className="flex gap-1.5 items-center px-4 py-3 rounded-2xl rounded-tl-sm bg-card border border-border/50">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              )}
+
+              {/* Error */}
+              {chatError && (
+                <div className="p-3 mb-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                  {chatError}
+                </div>
+              )}
+
+              {/* Input */}
+              <div className="flex gap-3 p-4 rounded-2xl bg-card border border-border/50 focus-within:border-primary/40 transition-colors">
+                <textarea
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleFollowup();
+                    }
+                  }}
+                  placeholder="Ask anything about your routine, pain, or exercises..."
+                  rows={2}
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
+                  data-testid="followup-input"
+                />
+                <button
+                  onClick={() => void handleFollowup()}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="self-end flex-shrink-0 w-9 h-9 rounded-xl bg-primary hover:bg-primary/90 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_-5px_rgba(37,99,235,0.5)]"
+                  data-testid="followup-submit"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground/40 mt-2 pl-1">
+                Enter to send · Shift+Enter for a new line
+              </p>
+            </motion.div>
+          )}
 
           {/* Bottom CTA */}
           <motion.div variants={fadeUp} className="mt-10 pt-6 border-t border-border/30 flex flex-col sm:flex-row gap-3 flex-wrap">
