@@ -96,7 +96,11 @@ router.post("/streaks/complete", async (req, res): Promise<void> => {
 
   if (insertError && insertError.code !== "23505") {
     req.log.error({ code: insertError.code, message: insertError.message }, "streaks POST insert error");
-    res.status(500).json({ error: "Failed to save completion" });
+    if (insertError.code === "PGRST205") {
+      res.status(503).json({ error: "Streaks table not set up yet — run supabase/migrations/006_create_streaks.sql in your Supabase SQL Editor." });
+    } else {
+      res.status(500).json({ error: "Failed to save completion" });
+    }
     return;
   }
 

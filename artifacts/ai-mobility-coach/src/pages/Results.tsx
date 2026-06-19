@@ -142,19 +142,28 @@ export default function Results() {
   });
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [markingComplete, setMarkingComplete] = useState(false);
+  const [streakError, setStreakError] = useState<string | null>(null);
 
   const handleMarkComplete = async () => {
     setMarkingComplete(true);
+    setStreakError(null);
     try {
       const res = await fetch("/api/streaks/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
-      const data = (await res.json()) as StreakData;
-      setStreakData(data);
+      const body = (await res.json()) as StreakData & { error?: string };
+      if (!res.ok) {
+        setStreakError(body.error ?? "Could not save — please try again.");
+        return;
+      }
+      // Only update state when the response has a valid shape
+      if (typeof body.streak === "number") {
+        setStreakData(body);
+      }
     } catch {
-      // non-critical — silently fail
+      setStreakError("Network error — please try again.");
     } finally {
       setMarkingComplete(false);
     }
@@ -266,10 +275,10 @@ export default function Results() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-1">
                     <span className="text-2xl font-black tracking-tight" data-testid="streak-count">
-                      {streakData != null ? `🔥 ${streakData.streak}` : "🔥 —"}
+                      {streakData != null ? `🔥 ${streakData.streak ?? 0}` : "🔥 0"}
                     </span>
                     <span className="text-sm font-semibold text-muted-foreground">day streak</span>
-                    {streakData != null && streakData.totalCompletions > 0 && (
+                    {streakData != null && (streakData.totalCompletions ?? 0) > 0 && (
                       <span className="text-xs text-muted-foreground pl-2 border-l border-border/50" data-testid="total-completions">
                         {streakData.totalCompletions} total
                       </span>
@@ -277,13 +286,13 @@ export default function Results() {
                   </div>
                   <p className="text-sm text-muted-foreground" data-testid="streak-message">
                     {streakData != null
-                      ? streakMessage(streakData.streak)
+                      ? streakMessage(streakData.streak ?? 0)
                       : "Complete your first routine to start your streak."}
                   </p>
                 </div>
 
                 {/* CTA */}
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex flex-col items-end gap-2">
                   {streakData?.completedToday ? (
                     <div
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-semibold"
@@ -295,12 +304,17 @@ export default function Results() {
                   ) : (
                     <Button
                       onClick={() => void handleMarkComplete()}
-                      disabled={markingComplete || streakData === null}
+                      disabled={markingComplete}
                       className="bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_20px_-5px_rgba(37,99,235,0.4)] whitespace-nowrap"
                       data-testid="button-mark-complete"
                     >
                       {markingComplete ? "Saving..." : "Mark Today Complete"}
                     </Button>
+                  )}
+                  {streakError && (
+                    <p className="text-xs text-destructive text-right max-w-[180px]" data-testid="streak-error">
+                      {streakError}
+                    </p>
                   )}
                 </div>
               </div>
