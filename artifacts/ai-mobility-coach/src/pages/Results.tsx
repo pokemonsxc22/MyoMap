@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send } from "lucide-react";
+import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
@@ -106,6 +106,18 @@ const TIME_SLOTS = [
   },
 ];
 
+interface StreakData {
+  streak: number;
+  totalCompletions: number;
+  completedToday: boolean;
+}
+
+function streakMessage(streak: number): string {
+  if (streak >= 7) return "Unstoppable! Your body is thanking you.";
+  if (streak >= 3) return "You're building a habit!";
+  return "Great start! Keep it going.";
+}
+
 export default function Results() {
   const [, setLocation] = useLocation();
   const [parsed, setParsed] = useState<ParsedRoutine | null>(null);
@@ -118,6 +130,35 @@ export default function Results() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  // ── Streak tracking ────────────────────────────────────────────────────────
+  const [userId] = useState<string>(() => {
+    let id = localStorage.getItem("mobilityUserId");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("mobilityUserId", id);
+    }
+    return id;
+  });
+  const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const [markingComplete, setMarkingComplete] = useState(false);
+
+  const handleMarkComplete = async () => {
+    setMarkingComplete(true);
+    try {
+      const res = await fetch("/api/streaks/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = (await res.json()) as StreakData;
+      setStreakData(data);
+    } catch {
+      // non-critical — silently fail
+    } finally {
+      setMarkingComplete(false);
+    }
+  };
 
   const handleFollowup = async () => {
     const question = chatInput.trim();
@@ -162,6 +203,13 @@ export default function Results() {
       setIsPlaceholder(true);
     }
   }, []);
+
+  useEffect(() => {
+    fetch(`/api/streaks/${encodeURIComponent(userId)}`)
+      .then((r) => (r.ok ? r.json() : { streak: 0, totalCompletions: 0, completedToday: false }))
+      .then((data) => setStreakData(data as StreakData))
+      .catch(() => setStreakData({ streak: 0, totalCompletions: 0, completedToday: false }));
+  }, [userId]);
 
   if (!parsed) return null;
 
@@ -209,6 +257,55 @@ export default function Results() {
             </span>
             <h1 className="text-3xl font-black leading-tight">Your Mobility Assessment</h1>
           </motion.div>
+
+          {/* ── Streak Card ── */}
+          {!isPlaceholder && (
+            <motion.div variants={fadeUp} className="mb-8">
+              <div className="p-5 rounded-2xl bg-card border border-border/50 flex flex-col sm:flex-row sm:items-center gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                {/* Streak info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-1">
+                    <span className="text-2xl font-black tracking-tight" data-testid="streak-count">
+                      {streakData != null ? `🔥 ${streakData.streak}` : "🔥 —"}
+                    </span>
+                    <span className="text-sm font-semibold text-muted-foreground">day streak</span>
+                    {streakData != null && streakData.totalCompletions > 0 && (
+                      <span className="text-xs text-muted-foreground pl-2 border-l border-border/50" data-testid="total-completions">
+                        {streakData.totalCompletions} total
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground" data-testid="streak-message">
+                    {streakData != null
+                      ? streakMessage(streakData.streak)
+                      : "Complete your first routine to start your streak."}
+                  </p>
+                </div>
+
+                {/* CTA */}
+                <div className="flex-shrink-0">
+                  {streakData?.completedToday ? (
+                    <div
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-semibold"
+                      data-testid="completed-today-badge"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Completed today
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => void handleMarkComplete()}
+                      disabled={markingComplete || streakData === null}
+                      className="bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_20px_-5px_rgba(37,99,235,0.4)] whitespace-nowrap"
+                      data-testid="button-mark-complete"
+                    >
+                      {markingComplete ? "Saving..." : "Mark Today Complete"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* What's Happening in Your Body */}
           <motion.div variants={fadeUp} className="mb-8">
