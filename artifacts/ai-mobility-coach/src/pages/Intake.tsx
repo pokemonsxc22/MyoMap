@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { SCREEN_QUESTIONS, type ScreenQuestion } from "@/lib/movementScreen";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 24 },
@@ -19,57 +20,20 @@ const SEVERITY_LABELS: Record<number, string> = {
 
 type ScreenAnswer = "yes" | "no";
 
-interface ScreenQuestion {
-  id: string;
-  label: string;
-}
-
-// 1–2 questions shown depending on the selected pain area
-const SCREEN_QUESTIONS: Record<string, ScreenQuestion[]> = {
-  "lower-back": [
-    { id: "heelsFlat", label: "When you squat down, do your heels stay flat on the ground?" },
-    { id: "touchToes",  label: "Can you touch your toes without bending your knees?" },
-  ],
-  "hips": [
-    { id: "heelsFlat", label: "When you squat down, do your heels stay flat on the ground?" },
-    { id: "touchToes",  label: "Can you touch your toes without bending your knees?" },
-  ],
-  "neck-shoulders": [
-    { id: "overheadReach", label: "Can you raise both arms straight overhead without your lower back arching?" },
-  ],
-  "knees": [
-    { id: "kneeCave", label: "Does your knee cave inward when you squat down?" },
-  ],
-  "hamstrings": [
-    { id: "touchToes", label: "Can you touch your toes without bending your knees?" },
-  ],
-  "quads": [
-    { id: "touchToes", label: "Can you touch your toes without bending your knees?" },
-  ],
-  "calves": [
-    { id: "heelsFlat", label: "Can you fully flatten your heels at the bottom of a squat?" },
-  ],
-  "chest": [
-    { id: "shoulderClasp", label: "Can you clasp your hands behind your back — one from over the shoulder and one from below?" },
-  ],
-  "upper-back": [
-    { id: "shoulderClasp", label: "Can you clasp your hands behind your back — one from over the shoulder and one from below?" },
-  ],
-  "mid-back": [
-    { id: "shoulderClasp", label: "Can you clasp your hands behind your back — one from over the shoulder and one from below?" },
-  ],
-  "abs-core": [
-    { id: "plankHold", label: "Can you hold a plank for 30 seconds without your hips sagging?" },
-  ],
-  "arms": [
-    { id: "armOverhead", label: "Can you fully straighten your arm overhead next to your ear?" },
-  ],
-};
-
 export default function Intake() {
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Stable session ID: created once per assessment, persisted so the retake can update the same row
+  const [sessionId] = useState<string>(() => {
+    const existing = sessionStorage.getItem("mobilitySessionId");
+    if (existing) return existing;
+    const next = crypto.randomUUID();
+    sessionStorage.setItem("mobilitySessionId", next);
+    return next;
+  });
+
   const [form, setForm] = useState({
     painArea: "",
     duration: "",
@@ -107,7 +71,7 @@ export default function Intake() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, sessionId }),
       });
       const data = (await res.json()) as { routine?: string; error?: string };
       if (!res.ok || !data.routine) {

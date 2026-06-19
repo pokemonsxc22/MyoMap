@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Home, RotateCcw, Sunset, Sun, Moon } from "lucide-react";
+import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
@@ -276,16 +276,38 @@ export default function Results() {
           </motion.div>
 
           {/* Bottom CTA */}
-          <motion.div variants={fadeUp} className="mt-10 pt-6 border-t border-border/30">
+          <motion.div variants={fadeUp} className="mt-10 pt-6 border-t border-border/30 flex flex-col sm:flex-row gap-3 flex-wrap">
             <Button
               onClick={() => { sessionStorage.removeItem("mobilityRoutine"); setLocation("/intake"); }}
               variant="outline"
-              className="flex items-center gap-2 border-border/50 w-full sm:w-auto"
+              className="flex items-center gap-2 border-border/50"
               data-testid="button-retake"
             >
               <RotateCcw className="w-4 h-4" />
               {isPlaceholder ? "Take the Assessment" : "Retake Assessment"}
             </Button>
+            {!isPlaceholder && (
+              <>
+                <Button
+                  onClick={() => setLocation("/retake")}
+                  variant="outline"
+                  className="flex items-center gap-2 border-primary/40 text-primary hover:bg-primary/10"
+                  data-testid="button-retake-screen"
+                >
+                  <RefreshCcw className="w-4 h-4" />
+                  Retake Movement Screen
+                </Button>
+                <Button
+                  onClick={() => setLocation("/progress")}
+                  variant="outline"
+                  className="flex items-center gap-2 border-border/50"
+                  data-testid="button-progress"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Track Your Progress
+                </Button>
+              </>
+            )}
           </motion.div>
 
         </motion.div>

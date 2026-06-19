@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "@/pages/Landing";
 import Intake from "@/pages/Intake";
 import Results from "@/pages/Results";
+import Retake from "@/pages/Retake";
+import Progress from "@/pages/Progress";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/intake" component={Intake} />
       <Route path="/results" component={Results} />
+      <Route path="/retake" component={Retake} />
+      <Route path="/progress" component={Progress} />
       <Route component={NotFound} />
     </Switch>
   );

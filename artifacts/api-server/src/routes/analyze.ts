@@ -92,7 +92,7 @@ function buildScreenLine(id: string, answer: "yes" | "no"): string {
 }
 
 router.post("/analyze", async (req, res): Promise<void> => {
-  const { painArea, duration, worsens, goal, severity, sex, sport, screen } = req.body as {
+  const { painArea, duration, worsens, goal, severity, sex, sport, screen, sessionId } = req.body as {
     painArea?: string;
     duration?: string;
     worsens?: string[];
@@ -101,6 +101,7 @@ router.post("/analyze", async (req, res): Promise<void> => {
     sex?: string;
     sport?: string;
     screen?: Record<string, "yes" | "no">;
+    sessionId?: string;
   };
 
   if (!painArea || !duration || !goal) {
@@ -191,8 +192,9 @@ router.post("/analyze", async (req, res): Promise<void> => {
 
   // Map screen dict keys to individual DB columns
   const s = screen ?? {};
-  req.log.info({ painArea, duration, goal, severity, sex, sport, screen }, "Triggering saveAssessment");
+  req.log.info({ painArea, duration, goal, severity, sex, sport }, "Triggering saveAssessment");
   void saveAssessment({
+    session_id:     sessionId ?? null,
     pain_location:  painArea,
     duration:       duration ?? null,
     worsens:        Array.isArray(worsens) ? worsens : null,
