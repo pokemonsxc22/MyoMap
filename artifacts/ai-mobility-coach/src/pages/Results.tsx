@@ -553,6 +553,14 @@ export default function Results() {
             )}
           </motion.div>
 
+          {/* Disclaimer */}
+          <motion.p
+            variants={fadeUp}
+            className="mt-8 text-center text-xs text-muted-foreground/40 leading-relaxed px-4"
+          >
+            AI Mobility Coach is not a substitute for professional medical advice. Consult a physician or licensed healthcare provider before beginning any new exercise program.
+          </motion.p>
+
         </motion.div>
       </div>
     </div>
