@@ -55,6 +55,10 @@ router.post("/followup", async (req, res): Promise<void> => {
     "You are an AI mobility coach. The user has already received their personalized corrective routine. " +
     "Answer their follow-up question concisely and specifically based on their pain profile and routine below. " +
     "Do not repeat the full routine. Keep answers under 150 words.\n\n" +
+    "If the user describes new or changed symptoms, or asks to update their exercises, respond with a JSON block " +
+    "at the very end of your message in this exact format:\n" +
+    '{"update_exercises": [{"name": "...", "sets": "...", "reps": "...", "instructions": "..."}]}\n' +
+    "Only include this block when exercises should change. Otherwise respond normally with no JSON.\n\n" +
     `USER PROFILE: ${profileSummary}\n\n` +
     `THEIR ROUTINE:\n${context.routine ?? "(not provided)"}`;
 
@@ -72,7 +76,7 @@ router.post("/followup", async (req, res): Promise<void> => {
         { role: "system", content: systemPrompt },
         ...messages,
       ],
-      max_tokens: 300,
+      max_tokens: 600,
     }),
   });
 

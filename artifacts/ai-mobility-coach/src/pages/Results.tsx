@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send, CheckCircle2 } from "lucide-react";
+import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send, CheckCircle2, LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase, signOut } from "@/lib/supabaseClient";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -54,6 +56,34 @@ function parseRoutine(text: string): ParsedRoutine {
   }
 
   return { rootCause: rootCauseLines.join("\n\n"), exercises };
+}
+
+interface ExerciseUpdate {
+  name: string;
+  sets?: string;
+  reps?: string;
+  instructions: string;
+}
+
+function parseExerciseUpdate(text: string): {
+  cleanText: string;
+  exercises: ExerciseUpdate[] | null;
+} {
+  const jsonMatch = text.match(/\{\s*"update_exercises"\s*:[\s\S]*\}\s*$/);
+  if (!jsonMatch) return { cleanText: text, exercises: null };
+  try {
+    const parsed = JSON.parse(jsonMatch[0]) as { update_exercises?: ExerciseUpdate[] };
+    if (!Array.isArray(parsed.update_exercises) || parsed.update_exercises.length === 0) {
+      return { cleanText: text, exercises: null };
+    }
+    const idx = text.lastIndexOf(jsonMatch[0]);
+    return {
+      cleanText: text.slice(0, idx).trim(),
+      exercises: parsed.update_exercises,
+    };
+  } catch {
+    return { cleanText: text, exercises: null };
+  }
 }
 
 // ── Placeholder data ──────────────────────────────────────────────
@@ -122,6 +152,9 @@ export default function Results() {
   const [, setLocation] = useLocation();
   const [parsed, setParsed] = useState<ParsedRoutine | null>(null);
   const [isPlaceholder, setIsPlaceholder] = useState(false);
+  const [assessmentId, setAssessmentId] = useState<string | null>(null);
+  const [overrideExercises, setOverrideExercises] = useState<ExerciseUpdate[] | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
   interface ChatEntry { question: string; answer: string }
   const [chatInput, setChatInput] = useState("");
@@ -192,9 +225,20 @@ export default function Results() {
       });
       const data = (await res.json()) as { answer?: string; error?: string };
       if (!res.ok || !data.answer) throw new Error(data.error ?? "Something went wrong");
-      setChatMessages([...outgoing, { role: "assistant" as const, content: data.answer }]);
-      setChatThread((prev) => [...prev, { question, answer: data.answer! }]);
+      const { cleanText, exercises } = parseExerciseUpdate(data.answer);
+      setChatMessages([...outgoing, { role: "assistant" as const, content: cleanText }]);
+      setChatThread((prev) => [...prev, { question, answer: cleanText }]);
       setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      if (exercises !== null) {
+        setOverrideExercises(exercises);
+        if (assessmentId) {
+          void fetch(`/api/assessments/${assessmentId}/exercises`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ exercises }),
+          });
+        }
+      }
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -203,6 +247,44 @@ export default function Results() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!supabase) return;
+    if (!user) setLocation("/auth");
+  }, [user, authLoading, setLocation]);
+
+  useEffect(() => {
+    const idParam = new URLSearchParams(window.location.search).get("id");
+
+    if (idParam && supabase) {
+      setAssessmentId(idParam);
+      void (async () => {
+        try {
+          const { data } = await supabase
+            .from("assessments")
+            .select("routine_text, exercises_json")
+            .eq("id", idParam)
+            .single();
+          const row = data as { routine_text?: string | null; exercises_json?: ExerciseUpdate[] | null } | null;
+          if (row?.exercises_json) setOverrideExercises(row.exercises_json);
+          const text = row?.routine_text ?? null;
+          if (text) {
+            setParsed(parseRoutine(text));
+            setIsPlaceholder(false);
+          } else {
+            setParsed(PLACEHOLDER);
+            setIsPlaceholder(true);
+          }
+        } catch {
+          setParsed(PLACEHOLDER);
+          setIsPlaceholder(true);
+        }
+      })();
+      return;
+    }
+
+    const storedId = sessionStorage.getItem("mobilityAssessmentId");
+    if (storedId) setAssessmentId(storedId);
+
     const stored = sessionStorage.getItem("mobilityRoutine");
     if (stored) {
       setParsed(parseRoutine(stored));
@@ -236,6 +318,14 @@ export default function Results() {
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <button
+              onClick={() => setLocation("/dashboard")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+              data-testid="button-nav-dashboard"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              Dashboard
+            </button>
+            <button
               onClick={() => setLocation("/")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
               data-testid="button-nav-home"
@@ -243,14 +333,16 @@ export default function Results() {
               <Home className="w-3.5 h-3.5" />
               Home
             </button>
-            <button
-              onClick={() => { sessionStorage.removeItem("mobilityRoutine"); setLocation("/intake"); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-              data-testid="button-nav-retake"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Retake Assessment
-            </button>
+            {user && (
+              <button
+                onClick={() => { void signOut(); setLocation("/auth"); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+                data-testid="button-nav-sign-out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign out
+              </button>
+            )}
           </div>
         </div>
       </nav>
@@ -383,48 +475,81 @@ export default function Results() {
             <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3">
               Your Full Routine
             </h2>
-            <motion.div variants={stagger} className="space-y-3">
-              {parsed.exercises.map((ex) => {
-                const slotIndex = TIME_SLOTS.findIndex(
-                  (s) => Number(ex.number) - 1 >= s.range[0] && Number(ex.number) - 1 <= s.range[1]
-                );
-                const slot = slotIndex >= 0 ? TIME_SLOTS[slotIndex] : TIME_SLOTS[0];
-                return (
-                  <motion.div
-                    key={ex.number}
-                    variants={fadeUp}
-                    className="flex gap-4 p-4 rounded-2xl bg-card border border-border/50 hover:border-border transition-colors"
-                    data-testid={`exercise-${ex.number}`}
+            {overrideExercises !== null ? (
+              <motion.div
+                key="override"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-3"
+              >
+                <p className="text-xs text-primary/60 font-medium mb-3 flex items-center gap-1.5">
+                  <RefreshCcw className="w-3 h-3" />
+                  Updated by AI based on your conversation
+                </p>
+                {overrideExercises.map((ex, idx) => (
+                  <div
+                    key={idx}
+                    className="flex gap-4 p-4 rounded-2xl bg-card border border-primary/20 hover:border-primary/30 transition-colors"
+                    data-testid={`exercise-override-${idx + 1}`}
                   >
-                    <div className={`flex-shrink-0 w-9 h-9 rounded-full ${slot.bg} border ${slot.border} flex items-center justify-center font-black text-sm ${slot.accent}`}>
-                      {ex.number}
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-black text-sm text-primary">
+                      {idx + 1}
                     </div>
-                    <div className="min-w-0 text-sm leading-relaxed pt-0.5">
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => <p>{children}</p>,
-                          strong: ({ children }) => (
-                            <strong className={`font-bold block mb-0.5 ${isPlaceholder ? "text-foreground/30" : "text-foreground"}`}>
-                              {children}
-                            </strong>
-                          ),
-                        }}
-                      >
-                        {ex.raw}
-                      </ReactMarkdown>
-                      {isPlaceholder && (
-                        <span className="text-muted-foreground/30 italic text-xs">&nbsp;</span>
+                    <div className="min-w-0 text-sm leading-relaxed pt-0.5 flex-1">
+                      <strong className="font-bold block mb-0.5 text-foreground">{ex.name}</strong>
+                      {(ex.sets || ex.reps) && (
+                        <p className="text-xs text-primary font-medium mb-1">{[ex.sets, ex.reps].filter(Boolean).join(" · ")}</p>
                       )}
+                      <p className="text-muted-foreground">{ex.instructions}</p>
                     </div>
-                    <div className="flex-shrink-0 self-start">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${slot.bg} ${slot.accent} border ${slot.border}`}>
-                        {slot.label}
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
+                  </div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div variants={stagger} className="space-y-3">
+                {parsed.exercises.map((ex) => {
+                  const slotIndex = TIME_SLOTS.findIndex(
+                    (s) => Number(ex.number) - 1 >= s.range[0] && Number(ex.number) - 1 <= s.range[1]
+                  );
+                  const slot = slotIndex >= 0 ? TIME_SLOTS[slotIndex] : TIME_SLOTS[0];
+                  return (
+                    <motion.div
+                      key={ex.number}
+                      variants={fadeUp}
+                      className="flex gap-4 p-4 rounded-2xl bg-card border border-border/50 hover:border-border transition-colors"
+                      data-testid={`exercise-${ex.number}`}
+                    >
+                      <div className={`flex-shrink-0 w-9 h-9 rounded-full ${slot.bg} border ${slot.border} flex items-center justify-center font-black text-sm ${slot.accent}`}>
+                        {ex.number}
+                      </div>
+                      <div className="min-w-0 text-sm leading-relaxed pt-0.5">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => <p>{children}</p>,
+                            strong: ({ children }) => (
+                              <strong className={`font-bold block mb-0.5 ${isPlaceholder ? "text-foreground/30" : "text-foreground"}`}>
+                                {children}
+                              </strong>
+                            ),
+                          }}
+                        >
+                          {ex.raw}
+                        </ReactMarkdown>
+                        {isPlaceholder && (
+                          <span className="text-muted-foreground/30 italic text-xs">&nbsp;</span>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 self-start">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${slot.bg} ${slot.accent} border ${slot.border}`}>
+                          {slot.label}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            )}
           </motion.div>
 
           {/* ── Follow-Up Chat ── */}
@@ -521,20 +646,34 @@ export default function Results() {
           {/* Bottom CTA */}
           <motion.div variants={fadeUp} className="mt-10 pt-6 border-t border-border/30 flex flex-col sm:flex-row gap-3 flex-wrap">
             <Button
-              onClick={() => { sessionStorage.removeItem("mobilityRoutine"); setLocation("/intake"); }}
-              variant="outline"
-              className="flex items-center gap-2 border-border/50"
-              data-testid="button-retake"
+              onClick={() => {
+                sessionStorage.removeItem("mobilityRoutine");
+                sessionStorage.removeItem("mobilityFormData");
+                sessionStorage.removeItem("mobilitySessionId");
+                sessionStorage.removeItem("mobilityAssessmentId");
+                setLocation("/intake");
+              }}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white border-0"
+              data-testid="button-new-assessment"
             >
               <RotateCcw className="w-4 h-4" />
-              {isPlaceholder ? "Take the Assessment" : "Retake Assessment"}
+              New Assessment
+            </Button>
+            <Button
+              onClick={() => setLocation("/dashboard")}
+              variant="outline"
+              className="flex items-center gap-2 border-border/50"
+              data-testid="button-back-to-dashboard"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Back to Dashboard
             </Button>
             {!isPlaceholder && (
               <>
                 <Button
                   onClick={() => setLocation("/retake")}
                   variant="outline"
-                  className="flex items-center gap-2 border-primary/40 text-primary hover:bg-primary/10"
+                  className="flex items-center gap-2 border-border/50"
                   data-testid="button-retake-screen"
                 >
                   <RefreshCcw className="w-4 h-4" />

@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { SCREEN_QUESTIONS } from "@/lib/movementScreen";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase, signOut } from "@/lib/supabaseClient";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 24 },
@@ -22,6 +24,7 @@ type ScreenAnswer = "yes" | "no";
 
 export default function Intake() {
   const [, setLocation] = useLocation();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +47,12 @@ export default function Intake() {
     sport: "",
     screen: {} as Record<string, ScreenAnswer>,
   });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!supabase) return;
+    if (!user) setLocation("/auth");
+  }, [user, authLoading, setLocation]);
 
   const handleCheckbox = (value: string) => {
     setForm((prev) => ({
@@ -71,14 +80,15 @@ export default function Intake() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, sessionId }),
+        body: JSON.stringify({ ...form, sessionId, userId: user?.id ?? null }),
       });
-      const data = (await res.json()) as { routine?: string; error?: string };
+      const data = (await res.json()) as { routine?: string; error?: string; assessmentId?: string };
       if (!res.ok || !data.routine) {
         throw new Error(data.error ?? "Something went wrong. Please try again.");
       }
       sessionStorage.setItem("mobilityRoutine", data.routine);
       sessionStorage.setItem("mobilityFormData", JSON.stringify(form));
+      if (data.assessmentId) sessionStorage.setItem("mobilityAssessmentId", data.assessmentId);
       setLocation("/results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
@@ -117,14 +127,26 @@ export default function Intake() {
       <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
 
       <div className="max-w-2xl mx-auto relative z-10">
-        <button
-          onClick={() => setLocation("/")}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-10"
-          data-testid="button-back"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back
-        </button>
+        <div className="flex items-center justify-between mb-10">
+          <button
+            onClick={() => setLocation("/")}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="button-back"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </button>
+          {user && (
+            <button
+              onClick={() => { void signOut(); setLocation("/auth"); }}
+              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="button-sign-out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign out
+            </button>
+          )}
+        </div>
 
         <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
           <div className="flex items-center gap-2 mb-2">

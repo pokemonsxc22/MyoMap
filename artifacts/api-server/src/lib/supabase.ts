@@ -29,6 +29,8 @@ export function getSupabaseClient(): SupabaseClient | null {
 }
 
 export interface AssessmentRow {
+  id?:           string;         // explicit UUID; if omitted the DB generates one
+  user_id?:      string | null;  // Supabase auth user id
   session_id:    string | null;
   pain_location: string;
   duration:      string | null;
@@ -38,6 +40,7 @@ export interface AssessmentRow {
   gender:        string | null;
   sport:         string | null;
   screen_json:   Record<string, string> | null; // full movement screen answers keyed by question ID
+  routine_text?: string | null;  // AI-generated routine text
 }
 
 export async function saveAssessment(row: AssessmentRow): Promise<void> {

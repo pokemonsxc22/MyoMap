@@ -1,0 +1,111 @@
+Add Supabase email authentication, a user dashboard with assessment history, and wire the existing AI follow-up chat to update the exercise plan. Here is exactly what to build:
+
+---
+
+## 1. Supabase Auth Setup
+
+Use the existing Supabase client. Enable email auth via magic link (no password).
+
+Add these auth functions:
+- `signInWithEmail(email)` → calls `supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })`
+- `signOut()` → calls `supabase.auth.signOut()`
+- `getUser()` → calls `supabase.auth.getUser()`
+- On app load, call `supabase.auth.onAuthStateChange` to track session state globally
+
+---
+
+## 2. Auth Page (`/auth`)
+
+Create a clean `/auth` page with:
+- App name at top
+- Single email input field
+- "Send magic link" button
+- On submit: call signInWithEmail, show message "Check your email for a sign-in link"
+- After user clicks the email link and returns, Supabase handles the session — redirect to `/dashboard`
+- If user is already signed in, redirect to `/dashboard`
+
+---
+
+## 3. Dashboard (`/dashboard`)
+
+Create a `/dashboard` page that:
+- Requires the user to be signed in (redirect to `/auth` if not)
+- Shows a greeting: "Hey, [email]"
+- Has a prominent "New assessment" button at the top that goes to `/intake`
+- Fetches and lists all past assessments for this user:
+```js
+  supabase.from('assessments').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+```
+- Each row shows: muscle group targeted, date created, and a "View results" button
+- "View results" loads that assessment onto `/results` (pass the assessment id via query param: `/results?id=...`)
+- Has a "Sign out" button in the top right
+
+---
+
+## 4. Protect Routes
+
+- `/intake`, `/results`, `/dashboard` → redirect to `/auth` if not signed in
+- `/auth` → redirect to `/dashboard` if already signed in
+- Add a small "Sign out" link in the top-right corner on `/intake` and `/results`
+- On `/results`, add a "Back to dashboard" link
+
+---
+
+## 5. Tie Assessments to User
+
+When saving an assessment on form submit, include:
+```js
+user_id: (await supabase.auth.getUser()).data.user.id
+```
+
+On `/intake`, if the user is already signed in, go straight to the form — do not prompt for auth again.
+
+On `/results?id=...`, if an id query param is present, load that specific assessment from Supabase instead of using session state.
+
+---
+
+## 6. New Assessment Flow
+
+On the results page, add a "New assessment" button that:
+- Clears current session/local state
+- Redirects to `/intake`
+- Does NOT sign the user out
+
+---
+
+## 7. AI Chat Updates Exercises
+
+The results page already has an AI follow-up chat. Extend it so the AI can update the exercise list when the user describes a new or changed symptom:
+
+Update the existing system prompt to add:
+"If the user describes new or changed symptoms, or asks to update their exercises, respond with a JSON block at the very end of your message in this exact format:
+{"update_exercises": [{"name": "...", "sets": "...", "reps": "...", "instructions": "..."}]}
+Only include this block when exercises should change. Otherwise respond normally with no JSON."
+
+On the frontend, after each AI chat response:
+- Check if the message contains a {"update_exercises": ...} JSON block
+- If yes: parse it, strip the JSON from the displayed message text, re-render the exercise list on the page with the new exercises (fade transition), and save the updated list to Supabase:
+```js
+  supabase.from('assessments').update({ exercises_json: newExercises }).eq('id', currentAssessmentId)
+```
+- If no: display the message as normal
+
+---
+
+## 8. Schema Migration
+
+Run this in the Supabase SQL editor before testing:
+
+```sql
+ALTER TABLE assessments ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id);
+ALTER TABLE assessments ADD COLUMN IF NOT EXISTS exercises_json jsonb;
+NOTIFY pgrst, 'reload schema';
+
+DROP POLICY IF EXISTS "anon insert" ON assessments;
+CREATE POLICY "users manage own" ON assessments
+  FOR ALL USING (auth.uid() = user_id OR user_id IS NULL);
+```
+
+---
+
+Do not change the intake form fields, AI generation logic, movement screen, or results page layout. Only add auth gating, dashboard, user_id saving, assessment history loading, and the exercise update parsing on top of what already exists.

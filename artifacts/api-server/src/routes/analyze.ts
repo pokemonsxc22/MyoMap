@@ -190,7 +190,7 @@ function buildScreenLine(id: string, answer: "yes" | "no"): string {
 }
 
 router.post("/analyze", async (req, res): Promise<void> => {
-  const { painArea, duration, worsens, goal, severity, sex, sport, screen, sessionId } = req.body as {
+  const { painArea, duration, worsens, goal, severity, sex, sport, screen, sessionId, userId } = req.body as {
     painArea?: string;
     duration?: string;
     worsens?: string[];
@@ -200,6 +200,7 @@ router.post("/analyze", async (req, res): Promise<void> => {
     sport?: string;
     screen?: Record<string, "yes" | "no">;
     sessionId?: string;
+    userId?: string;
   };
 
   if (!painArea || !duration || !goal) {
@@ -288,8 +289,12 @@ router.post("/analyze", async (req, res): Promise<void> => {
 
   const routine = data.choices?.[0]?.message?.content ?? "";
 
-  req.log.info({ painArea, duration, goal, severity, sex, sport }, "Triggering saveAssessment");
+  const assessmentId = crypto.randomUUID();
+
+  req.log.info({ painArea, duration, goal, severity, sex, sport, assessmentId }, "Triggering saveAssessment");
   void saveAssessment({
+    id:            assessmentId,
+    user_id:       userId ?? null,
     session_id:    sessionId ?? null,
     pain_location: painArea,
     duration:      duration ?? null,
@@ -299,9 +304,10 @@ router.post("/analyze", async (req, res): Promise<void> => {
     gender:        sex ?? null,
     sport:         sport ?? null,
     screen_json:   screen && Object.keys(screen).length > 0 ? screen : null,
+    routine_text:  routine,
   });
 
-  res.json({ routine });
+  res.json({ routine, assessmentId });
 });
 
 export default router;
