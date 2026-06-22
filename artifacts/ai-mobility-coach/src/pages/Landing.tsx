@@ -33,7 +33,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2" data-testid="nav-logo">
             <Activity className="w-6 h-6 text-primary" />
-            <span className="font-outfit font-bold text-xl tracking-tight">AI Mobility Coach</span>
+            <span className="font-outfit font-bold text-xl tracking-tight">MyoMap</span>
           </div>
           <div className="flex items-center gap-2">
             {user ? (
@@ -209,10 +209,10 @@ export default function Landing() {
       <footer className="py-8 px-6 border-t border-border/30 bg-background text-center relative z-10">
         <div className="flex items-center justify-center gap-2 mb-4 opacity-50">
           <Activity className="w-5 h-5" />
-          <span className="font-outfit font-bold tracking-tight">AI Mobility Coach</span>
+          <span className="font-outfit font-bold tracking-tight">MyoMap</span>
         </div>
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} AI Mobility Coach. All rights reserved.
+          &copy; {new Date().getFullYear()} MyoMap. All rights reserved.
         </p>
       </footer>
     </div>

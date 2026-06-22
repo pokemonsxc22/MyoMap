@@ -54,7 +54,7 @@ export default function Auth() {
       >
         <div className="flex items-center gap-2 mb-8 justify-center">
           <Activity className="w-5 h-5 text-primary" />
-          <span className="font-black text-lg tracking-tight">AI Mobility Coach</span>
+          <span className="font-black text-lg tracking-tight">MyoMap</span>
         </div>
 
         <div className="p-8 rounded-2xl bg-card border border-border/50 shadow-[0_0_80px_-20px_rgba(37,99,235,0.15)]">

@@ -292,7 +292,7 @@ export default function Dashboard() {
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 shrink-0">
             <Activity className="w-4 h-4 text-teal-500" />
-            <span className="font-bold text-sm tracking-tight">AI Mobility Coach</span>
+            <span className="font-bold text-sm tracking-tight">MyoMap</span>
           </div>
           <button
             onClick={handleSignOut}

@@ -314,7 +314,7 @@ export default function Results() {
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 shrink-0">
             <Activity className="w-4 h-4 text-primary" />
-            <span className="font-bold text-sm tracking-tight hidden sm:block">AI Mobility Coach</span>
+            <span className="font-bold text-sm tracking-tight hidden sm:block">MyoMap</span>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <button
@@ -697,7 +697,7 @@ export default function Results() {
             variants={fadeUp}
             className="mt-8 text-center text-xs text-muted-foreground/40 leading-relaxed px-4"
           >
-            AI Mobility Coach is not a substitute for professional medical advice. Consult a physician or licensed healthcare provider before beginning any new exercise program.
+            MyoMap is not a substitute for professional medical advice. Consult a physician or licensed healthcare provider before beginning any new exercise program.
           </motion.p>
 
         </motion.div>
