@@ -34,6 +34,51 @@ function computeStreak(dates: string[]): number {
   return streak;
 }
 
+// GET /streaks/:userId/week — dates checked in for Mon–Sun of the current ISO week + streak summary
+router.get("/streaks/:userId/week", async (req, res): Promise<void> => {
+  const { userId } = req.params;
+
+  if (!userId || userId.length > 128) {
+    res.status(400).json({ error: "Invalid userId" });
+    return;
+  }
+
+  // Compute Monday of the current week (UTC)
+  const now = new Date();
+  const dow = now.getUTCDay(); // 0=Sun … 6=Sat
+  const daysFromMonday = dow === 0 ? 6 : dow - 1;
+  const monday = new Date(now.getTime() - daysFromMonday * 86_400_000);
+  const mondayStr = monday.toISOString().slice(0, 10);
+
+  const client = getSupabaseClient();
+  if (!client) {
+    res.json({ dates: [], streak: 0, completedToday: false });
+    return;
+  }
+
+  // Fetch week dates + full history in parallel
+  const [weekRes, allRes] = await Promise.all([
+    client
+      .from("streaks")
+      .select("completed_date")
+      .eq("user_identifier", userId)
+      .gte("completed_date", mondayStr),
+    client
+      .from("streaks")
+      .select("completed_date")
+      .eq("user_identifier", userId),
+  ]);
+
+  const weekDates = (weekRes.data ?? []).map((r) => r.completed_date as string);
+  const allDates  = (allRes.data  ?? []).map((r) => r.completed_date as string);
+
+  res.json({
+    dates:          weekDates,
+    streak:         computeStreak(allDates),
+    completedToday: allDates.includes(todayUTC()),
+  });
+});
+
 // GET /streaks/:userId — current streak, total completions, completed-today flag
 router.get("/streaks/:userId", async (req, res): Promise<void> => {
   const { userId } = req.params;

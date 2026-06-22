@@ -1,0 +1,140 @@
+I need a full redesign of the Myomap app with several new features. Please implement all of the following changes together:
+
+---
+
+## 1. LANDING PAGE — Add Login/Sign Up button
+
+On the landing page (Landing.tsx or index/home route), add a "Log In / Sign Up" button in the top-right nav alongside the existing "Start Now" CTA. 
+
+- If the user is NOT logged in: show both "Log In / Sign Up" (outline button, teal border) and "Start Now" (filled teal button)
+- If the user IS logged in: replace "Log In / Sign Up" with a "Dashboard" button, and keep "Start Now"
+- The "Log In / Sign Up" button should navigate to /auth
+- Use AuthContext to check login state
+
+---
+
+## 2. FULL DASHBOARD REDESIGN — /dashboard
+
+Redesign Dashboard.tsx with the following four sections stacked vertically. Use Myomap brand colors: teal (#0D9488) and dark slate (#1E293B). Clean card-based layout.
+
+### Section A — Header
+- Greeting: "Welcome back, [user email]" or just "Welcome back" if no name
+- A prominent teal "Start New Assessment" button that navigates to /intake
+
+### Section B — Daily Check-In Chat (AI Chatbot)
+Create a self-contained chat widget on the dashboard. Title: "Daily Check-In". Subtitle: "Tell us how you're feeling today — we'll update your routine."
+
+UI:
+- A scrollable message thread area (max-height: 320px, overflow-y: auto)
+- Text input at the bottom with a "Send" button
+- Assistant messages aligned left with a teal avatar dot; user messages aligned right in a slate bubble
+- Loading spinner while waiting for AI response
+
+Behavior:
+- On send, POST to /api/daily-checkin with { message, userId, conversationHistory }
+- The system prompt for this endpoint should be: "You are Myomap's daily check-in assistant. The user will describe how their body feels today or what happened during their workout. Ask clarifying questions if needed. When you have enough information, output a JSON block at the end of your message in this exact format: {"update_routine": {"muscle_group": "...", "changes": "...", "new_exercises": [{"name":"...","sets":...,"reps":...,"notes":"..."}]}} - only include this JSON if you're recommending actual exercise changes. Otherwise just respond conversationally."
+- After receiving the AI response, parse for the {"update_routine": ...} JSON block. If found, strip it from the displayed text and update the matching routine card in Section D (by muscle_group) with the new exercises. Save updated exercises_json to Supabase assessments table.
+- Use Groq API (llama3-8b-8192) same as the rest of the app
+
+### Section C — Weekly Streak Tracker
+Title: "Your Streak"
+
+UI:
+- A single horizontal card showing Mon through Sun as 7 circles
+- Each circle: 44px diameter
+  - If checked in that day: filled teal circle (#0D9488) with a white checkmark icon inside
+  - If not checked in: light gray circle with the day letter (M, T, W, T, F, S, S) in slate
+  - Today's circle (if not yet checked in): teal border, white background, day letter in teal
+- Below the circles: "🔥 X day streak" text in slate
+- A "Check In Today" button (teal, full-width) that:
+  1. Marks today as checked in (saves to Supabase streaks table: columns user_id, check_in_date)
+  2. Fills today's circle immediately
+  3. Recalculates and updates the streak count
+  4. Changes button to "✓ Checked In Today" (disabled, gray) if already done today
+
+Supabase streaks table query: SELECT check_in_date FROM streaks WHERE user_id = [userId] AND check_in_date >= [Monday of current week]
+
+Calculate streak as: count of consecutive days ending today where a row exists.
+
+### Section D — My Routines (Multi-body-part)
+Title: "My Routines"
+
+Fetch all assessments for the logged-in user from Supabase: SELECT * FROM assessments WHERE user_id = [userId] ORDER BY created_at DESC
+
+Group them by pain_location (or the body part field from the intake form). 
+
+UI:
+- One card per unique body part/muscle group
+- Card header: body part name (e.g. "Lower Back"), date of last assessment, a teal badge showing "Active"
+- Each card is expanded by default showing the exercises from exercises_json or routine_text
+- If exercises_json exists, render it as a structured list:
+  - Exercise name (bold)
+  - Sets × Reps
+  - Notes in muted text below
+- If only routine_text exists, render it as formatted text
+- A small "Re-assess" button on each card that navigates to /intake with the body part pre-filled
+- If a Daily Check-In update was made to this muscle group (Section B), animate the card with a brief teal border flash and update the exercises in place
+
+---
+
+## 3. NEW BACKEND ROUTE — POST /api/daily-checkin
+
+In the Express API server (api-server/ folder), create a new route file routes/dailyCheckin.ts:
+
+```typescript
+import express from 'express';
+import Groq from 'groq-sdk';
+const router = express.Router();
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+router.post('/', async (req, res) => {
+  const { message, userId, conversationHistory = [] } = req.body;
+  
+  const systemPrompt = `You are Myomap's daily check-in assistant. The user will describe how their body feels today or what happened during their workout or activity. Listen carefully and ask one clarifying question if needed. When you have enough information to suggest routine changes, append a JSON block at the very end of your response in this exact format (no markdown, just raw JSON on its own line): {"update_routine": {"muscle_group": "lower_back", "changes": "brief description", "new_exercises": [{"name":"Exercise Name","sets":3,"reps":10,"notes":"form tip"}]}}. Only include this JSON block if recommending actual exercise changes. Otherwise respond conversationally and supportively.`;
+
+  const messages = [
+    ...conversationHistory,
+    { role: 'user', content: message }
+  ];
+
+  const completion = await groq.chat.completions.create({
+    model: 'llama3-8b-8192',
+    messages: [{ role: 'system', content: systemPrompt }, ...messages],
+    max_tokens: 600,
+  });
+
+  const reply = completion.choices[0].message.content || '';
+  res.json({ reply });
+});
+
+export default router;
+```
+
+Register it in server.ts: `app.use('/api/daily-checkin', dailyCheckinRouter);`
+
+---
+
+## 4. SUPABASE — Add check_in_date index
+
+Add this to the streaks table if not already present (run in Supabase SQL editor — just add a comment in the code noting this):
+```sql
+-- Run in Supabase: CREATE INDEX IF NOT EXISTS idx_streaks_user_date ON streaks(user_id, check_in_date);
+```
+
+Also ensure the assessments SELECT query includes exercises_json and routine_text columns.
+
+---
+
+## 5. ROUTING — App.tsx
+
+Make sure /dashboard is protected (redirect to /auth if not logged in). The existing auth guard logic should cover this — double check it applies to /dashboard.
+
+---
+
+## STYLING NOTES
+- Use Myomap brand: teal (#0D9488) for primary actions, dark slate (#1E293B) for text/headers
+- All cards: white background, subtle border (#E2E8F0), border-radius 12px, padding 20px
+- Section titles: 18px, font-weight 600, slate color
+- Mobile responsive: stack all sections, full-width cards
+- No external UI libraries needed — plain CSS/Tailwind classes only (whichever the project already uses)
+- Keep the existing nav (Dashboard link + Sign out) that's already in Results.tsx

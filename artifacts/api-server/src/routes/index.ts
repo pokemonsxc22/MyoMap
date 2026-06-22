@@ -5,6 +5,7 @@ import retakeRouter from "./retake";
 import followupRouter from "./followup";
 import streaksRouter from "./streaks";
 import assessmentsRouter from "./assessments";
+import dailyCheckinRouter from "./dailyCheckin";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(retakeRouter);
 router.use(followupRouter);
 router.use(streaksRouter);
 router.use(assessmentsRouter);
+router.use(dailyCheckinRouter);
 
 export default router;

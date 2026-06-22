@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
-import { Activity, Cpu, LineChart, MessageSquare, Target, Zap, ChevronRight } from "lucide-react";
+import { Activity, Cpu, LineChart, MessageSquare, Target, Zap, ChevronRight, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
@@ -33,14 +35,36 @@ export default function Landing() {
             <Activity className="w-6 h-6 text-primary" />
             <span className="font-outfit font-bold text-xl tracking-tight">AI Mobility Coach</span>
           </div>
-          <Button 
-            variant="default" 
-            className="font-semibold bg-primary hover:bg-primary/90 text-white border-0"
-            data-testid="button-nav-cta"
-            onClick={() => setLocation('/intake')}
-          >
-            Start Now
-          </Button>
+          <div className="flex items-center gap-2">
+            {user ? (
+              <Button
+                variant="outline"
+                className="font-semibold border-teal-500/60 text-teal-400 hover:bg-teal-500/10 hover:text-teal-300"
+                data-testid="button-nav-dashboard"
+                onClick={() => setLocation('/dashboard')}
+              >
+                <LayoutDashboard className="w-4 h-4 mr-1.5" />
+                Dashboard
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="font-semibold border-teal-500/60 text-teal-400 hover:bg-teal-500/10 hover:text-teal-300"
+                data-testid="button-nav-login"
+                onClick={() => setLocation('/auth')}
+              >
+                Log In / Sign Up
+              </Button>
+            )}
+            <Button
+              variant="default"
+              className="font-semibold bg-primary hover:bg-primary/90 text-white border-0"
+              data-testid="button-nav-cta"
+              onClick={() => setLocation('/intake')}
+            >
+              Start Now
+            </Button>
+          </div>
         </div>
       </nav>
 
