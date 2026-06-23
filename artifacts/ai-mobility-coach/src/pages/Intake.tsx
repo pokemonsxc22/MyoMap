@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { SCREEN_QUESTIONS } from "@/lib/movementScreen";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase, signOut } from "@/lib/supabaseClient";
+import { useUser } from "@/contexts/UserContext";
 
 const fadeInUp = {
-  hidden: { opacity: 0, y: 24 },
+  hidden:  { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
 };
 
@@ -24,11 +23,11 @@ type ScreenAnswer = "yes" | "no";
 
 export default function Intake() {
   const [, setLocation] = useLocation();
-  const { user, loading: authLoading } = useAuth();
+  const { userId, loading: userLoading } = useUser();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
-  // Stable session ID: created once per assessment, persisted so the retake can update the same row
+  // Stable session ID
   const [sessionId] = useState<string>(() => {
     const existing = sessionStorage.getItem("mobilitySessionId");
     if (existing) return existing;
@@ -38,21 +37,20 @@ export default function Intake() {
   });
 
   const [form, setForm] = useState({
-    painArea: "",
-    duration: "",
-    worsens: [] as string[],
-    goal: "",
-    severity: 0,
-    sex: "",
-    sport: "",
-    screen: {} as Record<string, ScreenAnswer>,
+    painArea:  "",
+    duration:  "",
+    worsens:   [] as string[],
+    goal:      "",
+    severity:  0,
+    sex:       "",
+    sport:     "",
+    screen:    {} as Record<string, ScreenAnswer>,
   });
 
+  // Redirect to welcome screen if no user identity yet
   useEffect(() => {
-    if (authLoading) return;
-    if (!supabase) return;
-    if (!user) setLocation("/auth");
-  }, [user, authLoading, setLocation]);
+    if (!userLoading && !userId) setLocation("/welcome");
+  }, [userId, userLoading, setLocation]);
 
   const handleCheckbox = (value: string) => {
     setForm((prev) => ({
@@ -64,7 +62,6 @@ export default function Intake() {
   };
 
   const handlePainArea = (value: string) => {
-    // Clear movement screen answers when pain area changes since the questions change
     setForm((prev) => ({ ...prev, painArea: value, screen: {} }));
   };
 
@@ -78,16 +75,16 @@ export default function Intake() {
     setError(null);
     try {
       const res = await fetch("/api/analyze", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, sessionId, userId: user?.id ?? null }),
+        body:    JSON.stringify({ ...form, sessionId, userId: userId ?? null }),
       });
       const data = (await res.json()) as { routine?: string; error?: string; assessmentId?: string };
       if (!res.ok || !data.routine) {
         throw new Error(data.error ?? "Something went wrong. Please try again.");
       }
-      sessionStorage.setItem("mobilityRoutine", data.routine);
-      sessionStorage.setItem("mobilityFormData", JSON.stringify(form));
+      sessionStorage.setItem("mobilityRoutine",   data.routine);
+      sessionStorage.setItem("mobilityFormData",  JSON.stringify(form));
       if (data.assessmentId) sessionStorage.setItem("mobilityAssessmentId", data.assessmentId);
       setLocation("/results");
     } catch (err) {
@@ -98,17 +95,17 @@ export default function Intake() {
   };
 
   const activeQuestions = form.painArea ? (SCREEN_QUESTIONS[form.painArea] ?? []) : [];
-  const screenComplete = activeQuestions.length === 0
+  const screenComplete  = activeQuestions.length === 0
     ? false
     : activeQuestions.every((q) => form.screen[q.id] !== undefined);
 
   const isValid =
-    form.painArea !== "" &&
-    form.duration !== "" &&
-    form.goal !== "" &&
-    form.severity > 0 &&
-    form.sex !== "" &&
-    form.sport !== "" &&
+    form.painArea  !== "" &&
+    form.duration  !== "" &&
+    form.goal      !== "" &&
+    form.severity  >   0  &&
+    form.sex       !== "" &&
+    form.sport     !== "" &&
     screenComplete;
 
   const selectClass =
@@ -120,6 +117,8 @@ export default function Intake() {
         ? "border-primary bg-primary/10 text-primary"
         : "border-border/50 bg-background text-muted-foreground hover:border-border"
     }`;
+
+  if (userLoading || !userId) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground px-6 py-16 relative">
@@ -136,16 +135,6 @@ export default function Intake() {
             <ChevronLeft className="w-4 h-4" />
             Back
           </button>
-          {user && (
-            <button
-              onClick={() => { void signOut(); setLocation("/auth"); }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-              data-testid="button-sign-out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign out
-            </button>
-          )}
         </div>
 
         <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
@@ -390,22 +379,8 @@ export default function Intake() {
                         {q.label}
                       </p>
                       <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleScreen(q.id, "yes")}
-                          data-testid={`screen-${q.id}-yes`}
-                          className={yesNoBtnClass(q.id, "yes")}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleScreen(q.id, "no")}
-                          data-testid={`screen-${q.id}-no`}
-                          className={yesNoBtnClass(q.id, "no")}
-                        >
-                          No
-                        </button>
+                        <button type="button" onClick={() => handleScreen(q.id, "yes")} data-testid={`screen-${q.id}-yes`} className={yesNoBtnClass(q.id, "yes")}>Yes</button>
+                        <button type="button" onClick={() => handleScreen(q.id, "no")}  data-testid={`screen-${q.id}-no`}  className={yesNoBtnClass(q.id, "no")}>No</button>
                       </div>
                     </div>
                   ))}

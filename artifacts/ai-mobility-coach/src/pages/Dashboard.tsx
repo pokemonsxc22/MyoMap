@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Activity, PlusCircle, LogOut, Send, CheckCircle2,
+  Activity, PlusCircle, Send, CheckCircle2,
   RefreshCcw, Flame, MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase, signOut } from "@/lib/supabaseClient";
+import { useUser } from "@/contexts/UserContext";
+import { supabase } from "@/lib/supabaseClient";
 import { formatDistanceToNow } from "date-fns";
 
 // ── Constants ─────────────────────────────────────────────────────
@@ -26,7 +26,6 @@ const AREA_LABELS: Record<string, string> = {
   "hips":           "Hips",
 };
 
-// maps AI muscle_group values → pain_location slugs
 const MUSCLE_GROUP_TO_SLUG: Record<string, string> = {
   lower_back:     "lower-back",
   mid_back:       "mid-back",
@@ -107,7 +106,7 @@ function parseExercisesFromRow(row: {
 
 function getWeekDateStrings(): string[] {
   const now = new Date();
-  const dow = now.getDay(); // 0=Sun
+  const dow = now.getDay();
   const daysFromMonday = dow === 0 ? 6 : dow - 1;
   const monday = new Date(now.getTime() - daysFromMonday * 86_400_000);
   return Array.from({ length: 7 }, (_, i) =>
@@ -118,38 +117,38 @@ function getWeekDateStrings(): string[] {
 // ── Component ─────────────────────────────────────────────────────
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { user, loading: authLoading } = useAuth();
+  const { userId, userName, loading: userLoading } = useUser();
 
   // Section B — Daily Check-In
-  const [chatInput, setChatInput] = useState("");
+  const [chatInput, setChatInput]     = useState("");
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
+  const [chatError, setChatError]     = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Section C — Streak
-  const [weekDates, setWeekDates] = useState<string[]>(getWeekDateStrings);
-  const [checkedDates, setCheckedDates] = useState<string[]>([]);
-  const [streak, setStreak] = useState(0);
+  const [weekDates]                         = useState<string[]>(getWeekDateStrings);
+  const [checkedDates, setCheckedDates]     = useState<string[]>([]);
+  const [streak, setStreak]                 = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
-  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkingIn, setCheckingIn]         = useState(false);
 
   // Section D — Routines
   const [routineGroups, setRoutineGroups] = useState<RoutineGroup[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [flashGroup, setFlashGroup] = useState<string | null>(null);
+  const [loadingData, setLoadingData]     = useState(true);
+  const [flashGroup, setFlashGroup]       = useState<string | null>(null);
 
-  // Auth guard
+  // Guard — redirect to welcome if no identity
   useEffect(() => {
-    if (!authLoading && !user) setLocation("/auth");
-  }, [user, authLoading, setLocation]);
+    if (!userLoading && !userId) setLocation("/welcome");
+  }, [userId, userLoading, setLocation]);
 
-  // Load data once we have a user
+  // Load data once we have a userId
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     // Streak week
-    void fetch(`/api/streaks/${encodeURIComponent(user.id)}/week`)
+    void fetch(`/api/streaks/${encodeURIComponent(userId)}/week`)
       .then((r) => (r.ok ? r.json() : { dates: [], streak: 0, completedToday: false }))
       .then((data: { dates: string[]; streak: number; completedToday: boolean }) => {
         setCheckedDates(data.dates ?? []);
@@ -163,7 +162,7 @@ export default function Dashboard() {
     void supabase
       .from("assessments")
       .select("id, pain_location, created_at, exercises_json, routine_text")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (!data) { setLoadingData(false); return; }
@@ -174,18 +173,18 @@ export default function Dashboard() {
           if (!seen.has(loc)) {
             seen.add(loc);
             groups.push({
-              id:            row.id as string,
-              painLocation:  loc,
-              lastDate:      row.created_at as string,
-              exercises:     parseExercisesFromRow(row),
-              routineText:   (row.routine_text as string | null) ?? null,
+              id:           row.id as string,
+              painLocation: loc,
+              lastDate:     row.created_at as string,
+              exercises:    parseExercisesFromRow(row),
+              routineText:  (row.routine_text as string | null) ?? null,
             });
           }
         }
         setRoutineGroups(groups);
         setLoadingData(false);
       });
-  }, [user]);
+  }, [userId]);
 
   // ── Handlers ───────────────────────────────────────────────────
   const handleSendMessage = async () => {
@@ -200,19 +199,15 @@ export default function Dashboard() {
 
     try {
       const res = await fetch("/api/daily-checkin", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: msg,
-          conversationHistory: outgoing.slice(0, -1),
-        }),
+        body:    JSON.stringify({ message: msg, conversationHistory: outgoing.slice(0, -1) }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };
       if (!res.ok || !data.reply) throw new Error(data.error ?? "Something went wrong");
 
       const { cleanText, update } = parseRoutineUpdate(data.reply);
-      const newHistory: ChatMessage[] = [...outgoing, { role: "assistant", content: cleanText }];
-      setChatHistory(newHistory);
+      setChatHistory([...outgoing, { role: "assistant", content: cleanText }]);
 
       if (update) {
         const slug = MUSCLE_GROUP_TO_SLUG[update.muscle_group];
@@ -224,20 +219,16 @@ export default function Dashboard() {
             instructions: e.notes,
           }));
           setRoutineGroups((prev) =>
-            prev.map((g) =>
-              g.painLocation === slug ? { ...g, exercises: newExercises } : g
-            )
+            prev.map((g) => g.painLocation === slug ? { ...g, exercises: newExercises } : g)
           );
-          // Flash the card
           setFlashGroup(slug);
           setTimeout(() => setFlashGroup(null), 1800);
-          // Persist to backend
           const target = routineGroups.find((g) => g.painLocation === slug);
           if (target) {
             void fetch(`/api/assessments/${target.id}/exercises`, {
-              method: "PUT",
+              method:  "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ exercises: newExercises }),
+              body:    JSON.stringify({ exercises: newExercises }),
             });
           }
         }
@@ -252,15 +243,15 @@ export default function Dashboard() {
   };
 
   const handleCheckIn = async () => {
-    if (!user || completedToday || checkingIn) return;
+    if (!userId || completedToday || checkingIn) return;
     setCheckingIn(true);
     try {
       const res = await fetch("/api/streaks/complete", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
+        body:    JSON.stringify({ userId }),
       });
-      const data = (await res.json()) as { streak?: number; completedToday?: boolean };
+      const data = (await res.json()) as { streak?: number };
       if (res.ok) {
         setCompletedToday(true);
         setStreak(data.streak ?? streak + 1);
@@ -272,12 +263,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    setLocation("/auth");
-  };
-
-  if (authLoading || !user) return null;
+  if (userLoading || !userId) return null;
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -294,14 +280,6 @@ export default function Dashboard() {
             <Activity className="w-4 h-4 text-teal-500" />
             <span className="font-bold text-sm tracking-tight">MyoMap</span>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-            data-testid="button-sign-out"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Sign out
-          </button>
         </div>
       </nav>
 
@@ -312,7 +290,7 @@ export default function Dashboard() {
           <div>
             <p className="text-xs font-semibold text-teal-500 tracking-widest uppercase mb-1">Dashboard</p>
             <h1 className="text-2xl font-black">
-              Welcome back{user.email ? `, ${user.email.split("@")[0]}` : ""}
+              Welcome back{userName ? `, ${userName}` : ""}
             </h1>
           </div>
           <Button
@@ -336,7 +314,7 @@ export default function Dashboard() {
           </div>
 
           {/* Message thread */}
-          <div className="px-5 py-4 max-h-80 overflow-y-auto space-y-3" id="chat-thread">
+          <div className="px-5 py-4 max-h-80 overflow-y-auto space-y-3">
             {chatHistory.length === 0 && (
               <p className="text-xs text-muted-foreground/50 text-center py-6">
                 Send a message to get started — describe any soreness, tightness, or how your workout went.
@@ -382,9 +360,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {chatError && (
-              <p className="text-xs text-destructive px-1">{chatError}</p>
-            )}
+            {chatError && <p className="text-xs text-destructive px-1">{chatError}</p>}
             <div ref={chatBottomRef} />
           </div>
 
@@ -421,12 +397,11 @@ export default function Dashboard() {
             <h2 className="font-semibold text-sm">Your Streak</h2>
           </div>
 
-          {/* Day circles */}
           <div className="flex items-center justify-between gap-1 mb-4">
             {weekDates.map((date, i) => {
-              const isChecked  = checkedDates.includes(date);
-              const isToday    = date === today;
-              const isFuture   = date > today;
+              const isChecked = checkedDates.includes(date);
+              const isToday   = date === today;
+              const isFuture  = date > today;
               return (
                 <div key={date} className="flex flex-col items-center gap-1.5">
                   <div
@@ -465,11 +440,8 @@ export default function Dashboard() {
               }`}
               data-testid="button-check-in"
             >
-              {completedToday ? (
-                <><CheckCircle2 className="w-3.5 h-3.5" /> Checked In Today</>
-              ) : (
-                <><CheckCircle2 className="w-3.5 h-3.5" /> Check In Today</>
-              )}
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {completedToday ? "Checked In Today" : "Check In Today"}
             </button>
           </div>
         </div>
@@ -507,7 +479,6 @@ export default function Dashboard() {
                   className="rounded-2xl bg-card border border-border/50 overflow-hidden"
                   data-testid={`routine-card-${group.painLocation}`}
                 >
-                  {/* Card header */}
                   <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-border/30">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
@@ -533,13 +504,12 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  {/* Exercises */}
                   <div className="px-5 py-4">
                     {group.exercises.length > 0 ? (
                       <div className="space-y-2.5">
                         {group.exercises.slice(0, 5).map((ex, idx) => {
                           const setsReps = [ex.sets, ex.reps].filter(Boolean).join(" × ");
-                          const desc = ex.instructions ?? ex.notes ?? "";
+                          const desc     = ex.instructions ?? ex.notes ?? "";
                           return (
                             <div key={idx} className="flex gap-3 text-sm">
                               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-[10px] font-bold text-teal-500 mt-0.5">
@@ -547,19 +517,15 @@ export default function Dashboard() {
                               </span>
                               <div className="min-w-0">
                                 <p className="font-semibold text-foreground leading-snug">{ex.name}</p>
-                                {setsReps && (
-                                  <p className="text-xs text-teal-500 font-medium mt-0.5">{setsReps}</p>
-                                )}
-                                {desc && (
-                                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{desc}</p>
-                                )}
+                                {setsReps && <p className="text-xs text-teal-500 font-medium mt-0.5">{setsReps}</p>}
+                                {desc && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{desc}</p>}
                               </div>
                             </div>
                           );
                         })}
                         {group.exercises.length > 5 && (
                           <p className="text-xs text-muted-foreground/50 pl-8">
-                            +{group.exercises.length - 5} more exercises — view full results
+                            +{group.exercises.length - 5} more exercises
                           </p>
                         )}
                       </div>
@@ -571,7 +537,6 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground/50">No exercise data available.</p>
                     )}
 
-                    {/* View full results link */}
                     <button
                       onClick={() => setLocation(`/results?id=${group.id}`)}
                       className="mt-3 text-xs font-semibold text-teal-500 hover:text-teal-400 transition-colors flex items-center gap-1"

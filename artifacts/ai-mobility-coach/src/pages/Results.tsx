@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send, CheckCircle2, LayoutDashboard, LogOut } from "lucide-react";
+import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send, CheckCircle2, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase, signOut } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
+import { USER_ID_KEY } from "@/contexts/UserContext";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -154,8 +154,6 @@ export default function Results() {
   const [isPlaceholder, setIsPlaceholder] = useState(false);
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
   const [overrideExercises, setOverrideExercises] = useState<ExerciseUpdate[] | null>(null);
-  const { user, loading: authLoading } = useAuth();
-
   interface ChatEntry { question: string; answer: string }
   const [chatInput, setChatInput] = useState("");
   const [chatThread, setChatThread] = useState<ChatEntry[]>([]);
@@ -165,14 +163,7 @@ export default function Results() {
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // ── Streak tracking ────────────────────────────────────────────────────────
-  const [userId] = useState<string>(() => {
-    let id = localStorage.getItem("mobilityUserId");
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem("mobilityUserId", id);
-    }
-    return id;
-  });
+  const [userId] = useState<string>(() => localStorage.getItem(USER_ID_KEY) ?? "");
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [markingComplete, setMarkingComplete] = useState(false);
   const [streakError, setStreakError] = useState<string | null>(null);
@@ -245,12 +236,6 @@ export default function Results() {
       setChatLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!supabase) return;
-    if (!user) setLocation("/auth");
-  }, [user, authLoading, setLocation]);
 
   useEffect(() => {
     const idParam = new URLSearchParams(window.location.search).get("id");
@@ -333,16 +318,6 @@ export default function Results() {
               <Home className="w-3.5 h-3.5" />
               Home
             </button>
-            {user && (
-              <button
-                onClick={() => { void signOut(); setLocation("/auth"); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-                data-testid="button-nav-sign-out"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Sign out
-              </button>
-            )}
           </div>
         </div>
       </nav>

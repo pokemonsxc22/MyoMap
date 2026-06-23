@@ -2,24 +2,20 @@ import { motion } from "framer-motion";
 import { Activity, Cpu, LineChart, MessageSquare, Target, Zap, ChevronRight, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
+import { useUser } from "@/contexts/UserContext";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { userId } = useUser();
+
   const fadeInUp = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
+    hidden:   { opacity: 0, y: 30 },
+    visible:  { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
   };
 
   const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-      },
-    },
+    hidden:  { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
   };
 
   return (
@@ -36,7 +32,7 @@ export default function Landing() {
             <span className="font-outfit font-bold text-xl tracking-tight">MyoMap</span>
           </div>
           <div className="flex items-center gap-2">
-            {user ? (
+            {userId && (
               <Button
                 variant="outline"
                 className="font-semibold border-teal-500/60 text-teal-400 hover:bg-teal-500/10 hover:text-teal-300"
@@ -45,15 +41,6 @@ export default function Landing() {
               >
                 <LayoutDashboard className="w-4 h-4 mr-1.5" />
                 Dashboard
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                className="font-semibold border-teal-500/60 text-teal-400 hover:bg-teal-500/10 hover:text-teal-300"
-                data-testid="button-nav-login"
-                onClick={() => setLocation('/auth')}
-              >
-                Log In / Sign Up
               </Button>
             )}
             <Button
@@ -81,21 +68,21 @@ export default function Landing() {
               <Zap className="w-4 h-4 text-primary" />
               <span>The future of athletic recovery</span>
             </motion.div>
-            
+
             <motion.h1 variants={fadeInUp} className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] mb-6">
               Stop guessing why <br className="hidden md:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-400">
                 your body hurts.
               </span>
             </motion.h1>
-            
+
             <motion.p variants={fadeInUp} className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
               We use AI and advanced kinesiology to diagnose tightness and pain, building a personalized, science-backed corrective exercise routine specifically for your body.
             </motion.p>
-            
+
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="w-full sm:w-auto text-lg h-14 px-8 font-bold bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_30px_-5px_rgba(37,99,235,0.4)]"
                 data-testid="button-hero-cta"
                 onClick={() => setLocation('/intake')}
@@ -111,7 +98,7 @@ export default function Landing() {
       {/* Benefits */}
       <section className="py-24 px-6 bg-secondary/20 border-y border-border/30 relative">
         <div className="max-w-7xl mx-auto">
-          <motion.div 
+          <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
@@ -180,7 +167,7 @@ export default function Landing() {
                 icon: Zap
               }
             ].map((item, i) => (
-              <motion.div 
+              <motion.div
                 key={i}
                 initial="hidden"
                 whileInView="visible"
@@ -189,11 +176,9 @@ export default function Landing() {
                 className="flex flex-col md:flex-row gap-6 md:gap-12 items-start md:items-center p-8 rounded-3xl bg-secondary/10 border border-border/30 relative overflow-hidden"
               >
                 <div className="absolute top-0 left-0 w-2 h-full bg-primary/20"></div>
-                
                 <div className="flex-shrink-0 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                   <item.icon className="w-8 h-8 text-primary" />
                 </div>
-                
                 <div className="flex-1">
                   <div className="text-sm font-bold text-primary mb-2 tracking-widest">STEP {item.step}</div>
                   <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
