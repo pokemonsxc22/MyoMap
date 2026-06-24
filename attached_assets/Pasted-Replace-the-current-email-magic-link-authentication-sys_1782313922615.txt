@@ -1,0 +1,59 @@
+Replace the current email/magic link authentication system in MyoMap with a simple name + optional email identity system. Here's exactly what to build:
+
+## How it works
+- On first visit, show a welcome screen asking for the user's first name (required) and email (optional)
+- Generate a UUID for them, store it in localStorage as `myomap_user_id` and their name as `myomap_user_name`
+- Save a record to Supabase in a `users` table: { id (uuid), name (text), email (text, nullable), created_at }
+- On every subsequent visit, read from localStorage — no login screen needed
+- All assessments and progress are tied to this UUID (replace any auth user_id references with this UUID)
+
+## Supabase setup
+Run this SQL in the Supabase SQL editor:
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+GRANT ALL ON users TO anon;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on users" ON users FOR ALL TO anon USING (true) WITH CHECK (true);
+
+## Name entry screen (shown only on first visit)
+- Clean centered card, teal (#0D9488) accent, dark slate (#1E293B) background
+- MyoMap logo/name at top
+- Heading: "Welcome to MyoMap"
+- Subtext: "Enter your name to get started and track your progress."
+- Input 1: "Your first name" — required
+- Input 2: Label reads "Email address" with a small "(optional)" tag next to the label
+- Helper text directly below the email input: "If you add your email, your progress will be saved and recoverable on any device. Without it, progress is stored only on this browser."
+- Button: "Get Started" (teal, full width)
+- Small muted text below the button: "No email? No problem — you can always add one later."
+- On submit: generate UUID, save to localStorage AND Supabase users table (email can be null if not provided), then redirect to the intake form
+- Validate that the name field is not empty before submitting
+- If email is provided, validate it is a properly formatted email before submitting
+
+## Returning user flow
+- On app load, check localStorage for `myomap_user_id` and `myomap_user_name`
+- If both exist, skip the name screen entirely and go straight to the app
+- Show their name in the dashboard header (e.g. "Welcome back, Sohan")
+
+## Progress recovery (for users who cleared localStorage)
+- Add a small "Recover my progress" link below the Get Started button on the name entry screen
+- Clicking it shows a simple input: "Enter your email to restore your progress"
+- Look up the email in the Supabase users table — if found, restore their UUID and name to localStorage and redirect to the app
+- If not found, show: "No account found with that email"
+
+## Dashboard & assessments
+- Replace all instances of Supabase auth user ID with the localStorage UUID
+- The dashboard at /dashboard should load assessments filtered by this UUID
+- Remove any "sign out" or auth-related UI elements
+- Keep all existing assessment, progress, and streak functionality exactly as-is — just swap the user identifier
+
+## Remove old email auth
+- Remove all Supabase magic link / signIn / signOut calls
+- Remove any magic link email input fields or auth-related routes
+- Remove the login/signup page and redirect that route to the name entry screen if localStorage is empty, or to the app if localStorage has a user
+
+Keep all existing features (movement screen, AI chat, streaks, dashboard, progress tracking) fully intact.
