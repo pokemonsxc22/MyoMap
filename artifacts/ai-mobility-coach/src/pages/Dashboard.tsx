@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity, PlusCircle, Send, CheckCircle2,
-  RefreshCcw, Flame, MessageCircle,
+  RefreshCcw, Flame, MessageCircle, LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -117,7 +117,7 @@ function getWeekDateStrings(): string[] {
 // ── Component ─────────────────────────────────────────────────────
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { userId, userName, loading: userLoading } = useUser();
+  const { userId, userName, loading: userLoading, signOut } = useUser();
 
   // Section B — Daily Check-In
   const [chatInput, setChatInput]     = useState("");
@@ -280,6 +280,13 @@ export default function Dashboard() {
             <Activity className="w-4 h-4 text-teal-500" />
             <span className="font-bold text-sm tracking-tight">MyoMap</span>
           </div>
+          <button
+            onClick={() => { signOut(); setLocation("/welcome"); }}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:border-border transition-colors text-xs font-medium"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Sign out
+          </button>
         </div>
       </nav>
 

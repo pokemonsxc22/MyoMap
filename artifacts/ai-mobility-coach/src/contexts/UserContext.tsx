@@ -8,6 +8,7 @@ interface UserCtx {
   userName: string | null;
   loading:  boolean;
   setUser:  (id: string, name: string) => void;
+  signOut:  () => void;
 }
 
 const UserContext = createContext<UserCtx>({
@@ -15,6 +16,7 @@ const UserContext = createContext<UserCtx>({
   userName: null,
   loading: true,
   setUser: () => {},
+  signOut: () => {},
 });
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -35,8 +37,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUserName(name);
   };
 
+  const signOut = () => {
+    localStorage.removeItem(USER_ID_KEY);
+    localStorage.removeItem(USER_NAME_KEY);
+    setUserId(null);
+    setUserName(null);
+  };
+
   return (
-    <UserContext.Provider value={{ userId, userName, loading, setUser }}>
+    <UserContext.Provider value={{ userId, userName, loading, setUser, signOut }}>
       {children}
     </UserContext.Provider>
   );

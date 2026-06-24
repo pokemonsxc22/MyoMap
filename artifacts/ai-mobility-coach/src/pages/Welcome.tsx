@@ -188,7 +188,7 @@ export default function Welcome() {
                 </p>
               </div>
 
-              {/* Recover link */}
+              {/* Recover link + Sign in button */}
               <p className="text-center text-xs text-muted-foreground/60 mt-5">
                 Used MyoMap before?{" "}
                 <button
@@ -198,6 +198,12 @@ export default function Welcome() {
                   Recover my progress
                 </button>
               </p>
+              <button
+                onClick={() => { setView("recover"); setRecoverError(null); }}
+                className="mt-3 w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all shadow-[0_0_20px_-5px_rgba(13,148,136,0.4)]"
+              >
+                Sign in
+              </button>
             </motion.div>
           )}
 
