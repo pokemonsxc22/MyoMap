@@ -1,0 +1,73 @@
+Replace the current name-only identity system with a proper email + password authentication system. Here's exactly what to build:
+
+## Auth flow
+- Use Supabase's built-in email + password auth (signUp, signInWithPassword, signOut, resetPasswordForEmail)
+- On sign up: collect first name, email, and password
+- On sign in: email and password
+- On forgot password: send a reset link to their email via Supabase
+
+## Sign up screen (/welcome)
+- Clean centered card, teal (#0D9488) accent, dark slate (#1E293B) background
+- MyoMap logo/name at top
+- Heading: "Create your account"
+- Input 1: "First name" — required
+- Input 2: "Email address" — required
+- Input 3: "Password" — required, minimum 6 characters, show/hide toggle
+- Button: "Get Started" (teal, full width)
+- Small text below: "Already have an account? Sign in"
+- On successful sign up: save their name to the Supabase users table using the auth user UUID, save name to localStorage as `myomap_user_name`, redirect to /intake
+- If email already exists, show: "An account with this email already exists. Sign in instead."
+
+## Sign in screen (/signin)
+- Same card style as sign up
+- Heading: "Welcome back"
+- Input 1: "Email address"
+- Input 2: "Password" with show/hide toggle
+- Button: "Sign in" (teal, full width)
+- "Forgot password?" link below the button
+- "Don't have an account? Sign up" link at the bottom
+- On success: restore name from Supabase users table, save to localStorage, redirect to /dashboard
+
+## Forgot password screen (/forgot-password)
+- Heading: "Reset your password"
+- Input: "Email address"
+- Button: "Send reset link" (teal)
+- On submit: call Supabase resetPasswordForEmail with the redirect URL set to /reset-password
+- Show success message: "Check your inbox — we sent a reset link to your email"
+
+## Reset password screen (/reset-password)
+- Supabase will redirect here after the user clicks the link in their email
+- Heading: "Set a new password"
+- Input: "New password" with show/hide toggle, minimum 6 characters
+- Button: "Update password" (teal)
+- On success: redirect to /dashboard
+
+## Supabase users table
+Make sure this SQL has been run (skip if table already exists):
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+On sign up, insert a row into users table using the Supabase auth user's UUID as the id, with their name and email.
+
+## Returning user / session handling
+- On app load, check if there is an active Supabase session
+- If yes, skip to /dashboard
+- If no, redirect to /welcome
+- Use Supabase onAuthStateChange to reactively handle session changes
+
+## Sign out
+- Keep the existing "Sign out" button in the dashboard navbar
+- On click: call Supabase signOut, clear localStorage, redirect to /welcome
+
+## Dashboard & assessments
+- Replace localStorage UUID with Supabase auth user UUID for all assessment queries
+- Keep all existing features (AI chat, streaks, progress tracking) fully intact
+
+## Remove old system
+- Remove the old name-only localStorage identity system
+- Remove the "Recover my progress" email lookup flow
+- Keep localStorage only for storing the user's name for display purposes

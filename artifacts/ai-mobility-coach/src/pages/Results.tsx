@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
-import { USER_ID_KEY } from "@/contexts/UserContext";
+import { useUser } from "@/contexts/UserContext";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -163,7 +163,8 @@ export default function Results() {
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // ── Streak tracking ────────────────────────────────────────────────────────
-  const [userId] = useState<string>(() => localStorage.getItem(USER_ID_KEY) ?? "");
+  const { userId: authUserId } = useUser();
+  const userId = authUserId ?? "";
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [markingComplete, setMarkingComplete] = useState(false);
   const [streakError, setStreakError] = useState<string | null>(null);

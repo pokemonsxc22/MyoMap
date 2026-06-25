@@ -1,51 +1,56 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import type { User } from "@supabase/supabase-js";
 
-export const USER_ID_KEY   = "myomap_user_id";
 export const USER_NAME_KEY = "myomap_user_name";
 
 interface UserCtx {
+  user:     User | null;
   userId:   string | null;
   userName: string | null;
   loading:  boolean;
-  setUser:  (id: string, name: string) => void;
-  signOut:  () => void;
+  signOut:  () => Promise<void>;
 }
 
 const UserContext = createContext<UserCtx>({
-  userId:  null,
+  user:     null,
+  userId:   null,
   userName: null,
-  loading: true,
-  setUser: () => {},
-  signOut: () => {},
+  loading:  true,
+  signOut:  async () => {},
 });
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [userId,   setUserId]   = useState<string | null>(null);
+  const [user, setUser]         = useState<User | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-  const [loading,  setLoading]  = useState(true);
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    setUserId(localStorage.getItem(USER_ID_KEY));
-    setUserName(localStorage.getItem(USER_NAME_KEY));
-    setLoading(false);
+    if (!supabase) { setLoading(false); return; }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setUserName(localStorage.getItem(USER_NAME_KEY));
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setUserName(session?.user ? localStorage.getItem(USER_NAME_KEY) : null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const setUser = (id: string, name: string) => {
-    localStorage.setItem(USER_ID_KEY, id);
-    localStorage.setItem(USER_NAME_KEY, name);
-    setUserId(id);
-    setUserName(name);
-  };
-
-  const signOut = () => {
-    localStorage.removeItem(USER_ID_KEY);
+  const signOut = async () => {
+    await supabase?.auth.signOut();
     localStorage.removeItem(USER_NAME_KEY);
-    setUserId(null);
+    setUser(null);
     setUserName(null);
   };
 
   return (
-    <UserContext.Provider value={{ userId, userName, loading, setUser, signOut }}>
+    <UserContext.Provider value={{ user, userId: user?.id ?? null, userName, loading, signOut }}>
       {children}
     </UserContext.Provider>
   );

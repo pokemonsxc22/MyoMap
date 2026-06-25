@@ -6,6 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserProvider } from "@/contexts/UserContext";
 import Landing from "@/pages/Landing";
 import Welcome from "@/pages/Welcome";
+import SignIn from "@/pages/SignIn";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import Intake from "@/pages/Intake";
 import Results from "@/pages/Results";
 import Retake from "@/pages/Retake";
@@ -18,14 +21,17 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Switch>
-      <Route path="/"          component={Landing} />
-      <Route path="/welcome"   component={Welcome} />
-      <Route path="/auth"      component={Welcome} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/intake"    component={Intake} />
-      <Route path="/results"   component={Results} />
-      <Route path="/retake"    component={Retake} />
-      <Route path="/progress"  component={Progress} />
+      <Route path="/"                component={Landing} />
+      <Route path="/welcome"         component={Welcome} />
+      <Route path="/auth"            component={Welcome} />
+      <Route path="/signin"          component={SignIn} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password"  component={ResetPassword} />
+      <Route path="/dashboard"       component={Dashboard} />
+      <Route path="/intake"          component={Intake} />
+      <Route path="/results"         component={Results} />
+      <Route path="/retake"          component={Retake} />
+      <Route path="/progress"        component={Progress} />
       <Route component={NotFound} />
     </Switch>
   );
