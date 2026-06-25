@@ -34,9 +34,37 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setUserName(session?.user ? localStorage.getItem(USER_NAME_KEY) : null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const authUser = session?.user ?? null;
+      setUser(authUser);
+
+      if (!authUser) {
+        setUserName(null);
+        return;
+      }
+
+      // On explicit sign-in or email confirmation, ensure name is in localStorage.
+      if (event === "SIGNED_IN") {
+        const cached = localStorage.getItem(USER_NAME_KEY);
+        if (cached) {
+          setUserName(cached);
+        } else {
+          // Fetch name from users table (e.g. different device or cleared storage).
+          supabase!
+            .from("users")
+            .select("name")
+            .eq("id", authUser.id)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data?.name) {
+                localStorage.setItem(USER_NAME_KEY, data.name as string);
+                setUserName(data.name as string);
+              }
+            });
+        }
+      } else {
+        setUserName(localStorage.getItem(USER_NAME_KEY));
+      }
     });
 
     return () => subscription.unsubscribe();

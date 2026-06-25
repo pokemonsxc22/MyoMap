@@ -30,8 +30,8 @@ export default function ForgotPassword() {
       return;
     }
 
-    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-    const redirectTo = `${window.location.origin}${base}/reset-password`;
+    const redirectTo = `${window.location.origin}/reset-password`;
+    console.log("[MyoMap] Password reset redirectTo:", redirectTo);
 
     const { error: resetErr } = await supabase.auth.resetPasswordForEmail(trimmed, {
       redirectTo,

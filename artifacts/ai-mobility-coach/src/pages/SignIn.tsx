@@ -56,16 +56,7 @@ export default function SignIn() {
       return;
     }
 
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("name")
-      .eq("id", authUser.id)
-      .maybeSingle();
-
-    if (userRow?.name) {
-      localStorage.setItem(USER_NAME_KEY, userRow.name as string);
-    }
-
+    // Redirect immediately — UserContext's onAuthStateChange handles name lookup.
     setLocation("/dashboard");
   };
 
