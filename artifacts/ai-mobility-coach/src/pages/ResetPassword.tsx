@@ -76,9 +76,8 @@ export default function ResetPassword() {
       <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
 
       <motion.div initial="hidden" animate="visible" variants={fadeUp} className="relative z-10 w-full max-w-sm">
-        <div className="flex items-center gap-2 mb-8 justify-center">
-          <Activity className="w-5 h-5 text-teal-500" />
-          <span className="font-black text-lg tracking-tight">MyoMap</span>
+        <div className="mb-8 flex justify-center">
+          <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-20 w-auto" />
         </div>
 
         <div className="p-8 rounded-2xl bg-card border border-border/50 shadow-[0_0_80px_-20px_rgba(13,148,136,0.15)]">

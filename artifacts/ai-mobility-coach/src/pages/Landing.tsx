@@ -27,9 +27,8 @@ export default function Landing() {
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 border-b border-border/40 bg-background/60 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2" data-testid="nav-logo">
-            <Activity className="w-6 h-6 text-primary" />
-            <span className="font-outfit font-bold text-xl tracking-tight">MyoMap</span>
+          <div className="flex items-center" data-testid="nav-logo">
+            <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-9 w-auto" />
           </div>
           <div className="flex items-center gap-2">
             {userId && (
@@ -192,9 +191,8 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border/30 bg-background text-center relative z-10">
-        <div className="flex items-center justify-center gap-2 mb-4 opacity-50">
-          <Activity className="w-5 h-5" />
-          <span className="font-outfit font-bold tracking-tight">MyoMap</span>
+        <div className="flex items-center justify-center mb-4 opacity-50">
+          <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-7 w-auto" />
         </div>
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} MyoMap. All rights reserved.

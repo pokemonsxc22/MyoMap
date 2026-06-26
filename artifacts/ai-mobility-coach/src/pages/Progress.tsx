@@ -80,9 +80,8 @@ export default function Progress() {
       {/* Nav */}
       <nav className="sticky top-0 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl z-50">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            <span className="font-bold text-sm tracking-tight hidden sm:block">MyoMap</span>
+          <div className="flex items-center">
+            <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-9 w-auto" />
           </div>
           <div className="flex items-center gap-1.5">
             <button
