@@ -6,6 +6,9 @@ import { useUser } from "@/contexts/UserContext";
 import { USER_NAME_KEY } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 
+const PENDING_EMAIL_KEY = "myomap_pending_email";
+const PENDING_PW_KEY    = "myomap_pending_pw";
+
 const fadeUp = {
   hidden:  { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" as const } },
@@ -15,12 +18,13 @@ export default function Welcome() {
   const [, setLocation] = useLocation();
   const { userId, loading } = useUser();
 
-  const [name, setName]       = useState("");
-  const [email, setEmail]     = useState("");
+  const [name, setName]         = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw]   = useState(false);
+  const [showPw, setShowPw]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError]       = useState<string | null>(null);
+  const [emailConflict, setEmailConflict] = useState(false);
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,12 +35,13 @@ export default function Welcome() {
     e.preventDefault();
     const trimName  = name.trim();
     const trimEmail = email.trim();
-    if (!trimName)         { setError("First name is required."); return; }
-    if (!trimEmail)        { setError("Email address is required."); return; }
+    if (!trimName)           { setError("First name is required."); return; }
+    if (!trimEmail)          { setError("Email address is required."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
 
     setSubmitting(true);
     setError(null);
+    setEmailConflict(false);
 
     if (!supabase) {
       setError("Authentication is not configured. Check your environment variables.");
@@ -53,7 +58,8 @@ export default function Welcome() {
     if (signUpErr) {
       const msg = signUpErr.message.toLowerCase();
       if (msg.includes("already registered") || msg.includes("already exists")) {
-        setError("An account with this email already exists. Sign in instead.");
+        setEmailConflict(true);
+        setError("An account with this email already exists.");
       } else {
         setError(signUpErr.message);
       }
@@ -62,6 +68,16 @@ export default function Welcome() {
     }
 
     const authUser = data.user;
+
+    // Supabase returns a fake user with empty identities when the email is
+    // already registered and email confirmations are enabled (silent duplicate).
+    if (authUser && (authUser.identities?.length ?? 0) === 0) {
+      setEmailConflict(true);
+      setError("An account with this email already exists.");
+      setSubmitting(false);
+      return;
+    }
+
     if (!authUser) {
       setError("Sign up failed. Please try again.");
       setSubmitting(false);
@@ -78,9 +94,16 @@ export default function Welcome() {
     localStorage.setItem(USER_NAME_KEY, trimName);
 
     if (data.session) {
+      // Email confirmations are disabled — session is live immediately.
       setLocation("/intake");
     } else {
-      setConfirmMsg(`We sent a confirmation link to ${trimEmail}. Check your inbox to activate your account.`);
+      // Confirmation email sent. Stash credentials so AuthRedirectHandler can
+      // auto-sign-in when the user returns after clicking the confirmation link.
+      sessionStorage.setItem(PENDING_EMAIL_KEY, trimEmail);
+      sessionStorage.setItem(PENDING_PW_KEY, password);
+      setConfirmMsg(
+        `We sent a confirmation link to ${trimEmail}. Check your inbox to activate your account.`
+      );
       setSubmitting(false);
     }
   };
@@ -118,7 +141,7 @@ export default function Welcome() {
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => { setName(e.target.value); setError(null); }}
+                  onChange={(e) => { setName(e.target.value); setError(null); setEmailConflict(false); }}
                   placeholder="First name"
                   autoFocus
                   autoComplete="given-name"
@@ -127,7 +150,7 @@ export default function Welcome() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); setEmailConflict(false); }}
                   placeholder="Email address"
                   autoComplete="email"
                   className="w-full h-11 px-4 rounded-xl bg-background border border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60 transition-colors text-sm"
@@ -151,7 +174,20 @@ export default function Welcome() {
                   </button>
                 </div>
 
-                {error && <p className="text-xs text-destructive leading-relaxed">{error}</p>}
+                {error && (
+                  <p className="text-xs text-destructive leading-relaxed">
+                    {error}{" "}
+                    {emailConflict && (
+                      <button
+                        type="button"
+                        onClick={() => setLocation("/signin")}
+                        className="underline font-medium hover:text-destructive/80 transition-colors"
+                      >
+                        Sign in instead
+                      </button>
+                    )}
+                  </p>
+                )}
 
                 <button
                   type="submit"

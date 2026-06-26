@@ -16,16 +16,35 @@ export default function ResetPassword() {
   const [saving, setSaving]     = useState(false);
   const [done, setDone]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  // ready = true once we have a valid PASSWORD_RECOVERY session
   const [ready, setReady]       = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true);
+
+    console.log("[MyoMap] ResetPassword — mounted, subscribing to auth events");
+
+    // Listen for the PASSWORD_RECOVERY event. Supabase fires this (instead of
+    // SIGNED_IN) when it processes a password-reset token from the URL.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[MyoMap] ResetPassword — auth event:", event, "session:", !!session);
+      if (event === "PASSWORD_RECOVERY") {
+        console.log("[MyoMap] ResetPassword — PASSWORD_RECOVERY received, showing form");
+        setReady(true);
+      }
     });
+
+    // Fallback: if the token was processed before the listener mounted (e.g.
+    // the Supabase client initialised synchronously and already exchanged the
+    // code), getSession returns the recovery session and we can show the form.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
+      console.log("[MyoMap] ResetPassword — getSession:", !!session, session?.user?.email);
+      if (session) {
+        console.log("[MyoMap] ResetPassword — session present, marking ready");
+        setReady(true);
+      }
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -36,13 +55,19 @@ export default function ResetPassword() {
     setSaving(true);
     setError(null);
 
+    console.log("[MyoMap] ResetPassword — calling updateUser");
     const { error: updateErr } = await supabase!.auth.updateUser({ password });
     setSaving(false);
 
-    if (updateErr) { setError(updateErr.message); return; }
+    if (updateErr) {
+      console.error("[MyoMap] ResetPassword — updateUser error:", updateErr.message);
+      setError(updateErr.message);
+      return;
+    }
 
+    console.log("[MyoMap] ResetPassword — password updated, redirecting to /dashboard");
     setDone(true);
-    setTimeout(() => setLocation("/dashboard"), 2000);
+    setLocation("/dashboard");
   };
 
   return (

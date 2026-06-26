@@ -19,20 +19,62 @@ import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
 
-// Listens for SIGNED_IN (email confirmation or sign-in) and drives the user
-// to /dashboard. Skip on /reset-password so the password-update flow isn't
-// interrupted when Supabase creates a recovery session.
+const PENDING_EMAIL_KEY = "myomap_pending_email";
+const PENDING_PW_KEY    = "myomap_pending_pw";
+
+// Global auth handler mounted inside the wouter Router so it has access to
+// the router context. Handles two jobs:
+//   1. On mount: if the user stored pending sign-up credentials (because email
+//      confirmation was required), attempt auto-sign-in now that they've
+//      confirmed and returned to the app.
+//   2. On SIGNED_IN event: clear any pending credentials and redirect to
+//      /dashboard (skipped when on /reset-password so the recovery flow
+//      is not interrupted).
 function AuthRedirectHandler() {
   const [location, setLocation] = useLocation();
+
+  // Job 1: attempt auto-sign-in with stashed credentials on first render.
+  useEffect(() => {
+    if (!supabase) return;
+    const pendingEmail = sessionStorage.getItem(PENDING_EMAIL_KEY);
+    const pendingPw    = sessionStorage.getItem(PENDING_PW_KEY);
+    if (!pendingEmail || !pendingPw) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // Supabase already created a session from the confirmation link.
+        sessionStorage.removeItem(PENDING_EMAIL_KEY);
+        sessionStorage.removeItem(PENDING_PW_KEY);
+      } else {
+        // No session yet — email was confirmed but no auto-session; sign in explicitly.
+        supabase!.auth
+          .signInWithPassword({ email: pendingEmail, password: pendingPw })
+          .then(({ error }) => {
+            if (!error) {
+              sessionStorage.removeItem(PENDING_EMAIL_KEY);
+              sessionStorage.removeItem(PENDING_PW_KEY);
+              // SIGNED_IN event fires → job 2 below handles the /dashboard redirect.
+            }
+          });
+      }
+    });
+  }, []); // run once on mount
+
+  // Job 2: redirect to /dashboard on any SIGNED_IN event.
   useEffect(() => {
     if (!supabase) return;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" && location !== "/reset-password") {
-        setLocation("/dashboard");
+      if (event === "SIGNED_IN") {
+        sessionStorage.removeItem(PENDING_EMAIL_KEY);
+        sessionStorage.removeItem(PENDING_PW_KEY);
+        if (location !== "/reset-password") {
+          setLocation("/dashboard");
+        }
       }
     });
     return () => subscription.unsubscribe();
   }, [location, setLocation]);
+
   return null;
 }
 

@@ -11,10 +11,10 @@ const fadeUp = {
 
 export default function ForgotPassword() {
   const [, setLocation] = useLocation();
-  const [email, setEmail]   = useState("");
+  const [email, setEmail]     = useState("");
   const [sending, setSending] = useState(false);
-  const [sent, setSent]     = useState(false);
-  const [error, setError]   = useState<string | null>(null);
+  const [sent, setSent]       = useState(false);
+  const [error, setError]     = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +30,15 @@ export default function ForgotPassword() {
       return;
     }
 
-    const redirectTo = `${window.location.origin}/reset-password`;
-    console.log("[MyoMap] Password reset redirectTo:", redirectTo);
+    // Build the redirect URL. In production the app sits at the root ("/"),
+    // but in Replit dev the Vite BASE_URL may be a subpath. Strip trailing
+    // slash so we never get double-slashes.
+    const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+    const redirectTo = `${window.location.origin}${base}/reset-password`;
+
+    console.log("[MyoMap] ForgotPassword — window.location.origin:", window.location.origin);
+    console.log("[MyoMap] ForgotPassword — BASE_URL:", import.meta.env.BASE_URL);
+    console.log("[MyoMap] ForgotPassword — redirectTo sent to Supabase:", redirectTo);
 
     const { error: resetErr } = await supabase.auth.resetPasswordForEmail(trimmed, {
       redirectTo,
@@ -40,10 +47,12 @@ export default function ForgotPassword() {
     setSending(false);
 
     if (resetErr) {
+      console.error("[MyoMap] ForgotPassword — resetPasswordForEmail error:", resetErr.message);
       setError(resetErr.message);
       return;
     }
 
+    console.log("[MyoMap] ForgotPassword — reset email sent successfully");
     setSent(true);
   };
 
