@@ -1,0 +1,1 @@
+- [Security architecture](security-architecture.md) — helmet, CORS allowlist, rate limiting, input sanitization pattern for this app.

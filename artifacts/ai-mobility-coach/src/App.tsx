@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { useUser } from "@/contexts/UserContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -78,6 +79,15 @@ function AuthRedirectHandler() {
   return null;
 }
 
+// Route-level auth guard: redirects to /welcome when there is no active session.
+// Works in tandem with per-page guards already in Dashboard and Intake.
+function PrivateRoute({ component: Component }: { component: React.ComponentType }) {
+  const { userId, loading } = useUser();
+  if (loading) return null;
+  if (!userId) return <Redirect to="/welcome" />;
+  return <Component />;
+}
+
 function Router() {
   return (
     <>
@@ -89,11 +99,11 @@ function Router() {
         <Route path="/signin"          component={SignIn} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password"  component={ResetPassword} />
-        <Route path="/dashboard"       component={Dashboard} />
-        <Route path="/intake"          component={Intake} />
-        <Route path="/results"         component={Results} />
-        <Route path="/retake"          component={Retake} />
-        <Route path="/progress"        component={Progress} />
+        <Route path="/dashboard"       component={() => <PrivateRoute component={Dashboard} />} />
+        <Route path="/intake"          component={() => <PrivateRoute component={Intake} />} />
+        <Route path="/results"         component={() => <PrivateRoute component={Results} />} />
+        <Route path="/retake"          component={() => <PrivateRoute component={Retake} />} />
+        <Route path="/progress"        component={() => <PrivateRoute component={Progress} />} />
         <Route component={NotFound} />
       </Switch>
     </>

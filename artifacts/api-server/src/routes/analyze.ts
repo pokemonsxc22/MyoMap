@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import { saveAssessment } from "../lib/supabase";
+import { aiLimiter } from "../middlewares/rateLimiter";
+import { sanitizeText, sanitizeStringArray } from "../lib/sanitize";
 
 const router: IRouter = Router();
 
@@ -189,125 +191,148 @@ function buildScreenLine(id: string, answer: "yes" | "no"): string {
   return `${def.question}: ${failed ? def.failMsg : def.passMsg}.`;
 }
 
-router.post("/analyze", async (req, res): Promise<void> => {
-  const { painArea, duration, worsens, goal, severity, sex, sport, screen, sessionId, userId } = req.body as {
-    painArea?: string;
-    duration?: string;
-    worsens?: string[];
-    goal?: string;
-    severity?: number;
-    sex?: string;
-    sport?: string;
-    screen?: Record<string, "yes" | "no">;
-    sessionId?: string;
-    userId?: string;
-  };
+router.post("/analyze", aiLimiter, async (req, res): Promise<void> => {
+  try {
+    const {
+      painArea: rawPainArea,
+      duration: rawDuration,
+      worsens:  rawWorsens,
+      goal:     rawGoal,
+      severity: rawSeverity,
+      sex:      rawSex,
+      sport:    rawSport,
+      screen:   rawScreen,
+      sessionId: rawSessionId,
+      userId:   rawUserId,
+    } = req.body as Record<string, unknown>;
 
-  if (!painArea || !duration || !goal) {
-    res.status(400).json({ error: "Missing required fields: painArea, duration, goal" });
-    return;
+    // Sanitize and validate all fields — strips HTML, truncates to max length.
+    const painArea  = sanitizeText(rawPainArea, 100);
+    const duration  = sanitizeText(rawDuration, 100);
+    const goal      = sanitizeText(rawGoal, 100);
+    const sex       = sanitizeText(rawSex, 50);
+    const sport     = sanitizeText(rawSport, 100);
+    const sessionId = sanitizeText(rawSessionId, 200);
+    const userId    = sanitizeText(rawUserId, 200);
+    const worsens   = sanitizeStringArray(rawWorsens, 100);
+    const severity  =
+      typeof rawSeverity === "number" && rawSeverity >= 1 && rawSeverity <= 5
+        ? rawSeverity
+        : undefined;
+
+    // Validate screen: accept only a plain object with "yes"|"no" values.
+    const screen =
+      rawScreen !== null &&
+      typeof rawScreen === "object" &&
+      !Array.isArray(rawScreen)
+        ? (Object.fromEntries(
+            Object.entries(rawScreen as Record<string, unknown>)
+              .filter(([, v]) => v === "yes" || v === "no")
+              .slice(0, 50),
+          ) as Record<string, "yes" | "no">)
+        : undefined;
+
+    if (!painArea || !duration || !goal) {
+      res.status(400).json({ error: "Missing required fields: painArea, duration, goal" });
+      return;
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      req.log.error("GROQ_API_KEY is not configured");
+      res.status(503).json({ error: "AI service not configured" });
+      return;
+    }
+
+    const worsenLabels =
+      worsens.length > 0 ? worsens.map(label).join(", ") : "nothing specific";
+
+    const severityText = severity
+      ? `${severity}/5 (${
+          severity <= 1 ? "barely noticeable"
+          : severity === 2 ? "mild"
+          : severity === 3 ? "moderate"
+          : severity === 4 ? "quite painful"
+          : "very painful"
+        })`
+      : "not specified";
+
+    const screenLines = Object.entries(screen ?? {})
+      .map(([id, ans]) => buildScreenLine(id, ans))
+      .filter(Boolean);
+
+    const userMessage = [
+      `I have pain or tightness in my ${label(painArea)}.`,
+      `I've had this issue for ${label(duration)}.`,
+      `Pain severity: ${severityText}.`,
+      `It gets worse when: ${worsenLabels}.`,
+      `My main goal is to ${label(goal)}.`,
+      sex   ? `Biological sex: ${sex}.` : "",
+      sport ? `My primary sport or activity is ${label(sport)}.` : "",
+      screenLines.length > 0 ? `Movement screen results: ${screenLines.join(" ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    req.log.info({ painArea, duration, goal, sport }, "Calling Groq API");
+
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization:  `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an AI mobility coach with expertise in kinesiology and biomechanics. When given a user's pain/tightness profile, respond with: " +
+              "1) A plain-English explanation of the likely biomechanical root cause (2-3 sentences) — explicitly reference the user's sport or activity if provided, and call out any movement screen FAIL or CONCERN results by name, explaining what specific mobility restriction they reveal. " +
+              "2) A numbered list of exactly 10 corrective exercises, selected to address both the reported pain area and any restrictions identified in the movement screen, and adapted where possible to the demands of the user's sport. " +
+              "Format each exercise as: '1. **Exercise Name**: Description.' Be encouraging and specific.",
+          },
+          { role: "user", content: userMessage },
+        ],
+      }),
+    });
+
+    if (!groqRes.ok) {
+      const errorText = await groqRes.text();
+      req.log.error({ status: groqRes.status, body: errorText }, "Groq API error");
+      res.status(502).json({ error: "Something went wrong. Please try again." });
+      return;
+    }
+
+    const data = (await groqRes.json()) as {
+      choices: Array<{ message: { content: string } }>;
+    };
+
+    const routine = data.choices?.[0]?.message?.content ?? "";
+    const assessmentId = crypto.randomUUID();
+
+    req.log.info({ painArea, duration, goal, severity, sex, sport, assessmentId }, "Triggering saveAssessment");
+    void saveAssessment({
+      id:            assessmentId,
+      user_id:       userId || null,
+      session_id:    sessionId || null,
+      pain_location: painArea,
+      duration:      duration || null,
+      worsens:       worsens.length > 0 ? worsens : null,
+      goal:          goal || null,
+      severity:      severity ?? null,
+      gender:        sex || null,
+      sport:         sport || null,
+      screen_json:   screen && Object.keys(screen).length > 0 ? screen : null,
+      routine_text:  routine,
+    });
+
+    res.json({ routine, assessmentId });
+  } catch (err) {
+    req.log.error({ err }, "analyze: unexpected error");
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    req.log.error("GROQ_API_KEY is not configured");
-    res.status(500).json({ error: "AI service not configured" });
-    return;
-  }
-
-  const worsenLabels =
-    Array.isArray(worsens) && worsens.length > 0
-      ? worsens.map(label).join(", ")
-      : "nothing specific";
-
-  const severityText = severity
-    ? `${severity}/5 (${
-        severity <= 1 ? "barely noticeable"
-        : severity === 2 ? "mild"
-        : severity === 3 ? "moderate"
-        : severity === 4 ? "quite painful"
-        : "very painful"
-      })`
-    : "not specified";
-
-  const screenLines = Object.entries(screen ?? {})
-    .map(([id, ans]) => buildScreenLine(id, ans))
-    .filter(Boolean);
-
-  const userMessage = [
-    `I have pain or tightness in my ${label(painArea)}.`,
-    `I've had this issue for ${label(duration)}.`,
-    `Pain severity: ${severityText}.`,
-    `It gets worse when: ${worsenLabels}.`,
-    `My main goal is to ${label(goal)}.`,
-    sex   ? `Biological sex: ${sex}.` : "",
-    sport ? `My primary sport or activity is ${label(sport)}.` : "",
-    screenLines.length > 0
-      ? `Movement screen results: ${screenLines.join(" ")}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  req.log.info({ painArea, duration, goal, sport }, "Calling Groq API");
-
-  const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "openai/gpt-oss-20b",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an AI mobility coach with expertise in kinesiology and biomechanics. When given a user's pain/tightness profile, respond with: " +
-            "1) A plain-English explanation of the likely biomechanical root cause (2-3 sentences) — explicitly reference the user's sport or activity if provided, and call out any movement screen FAIL or CONCERN results by name, explaining what specific mobility restriction they reveal. " +
-            "2) A numbered list of exactly 10 corrective exercises, selected to address both the reported pain area and any restrictions identified in the movement screen, and adapted where possible to the demands of the user's sport. " +
-            "Format each exercise as: '1. **Exercise Name**: Description.' Be encouraging and specific.",
-        },
-        {
-          role: "user",
-          content: userMessage,
-        },
-      ],
-    }),
-  });
-
-  if (!groqRes.ok) {
-    const errorText = await groqRes.text();
-    req.log.error({ status: groqRes.status, body: errorText }, "Groq API error");
-    res.status(502).json({ error: "Failed to get a response from the AI. Please try again." });
-    return;
-  }
-
-  const data = (await groqRes.json()) as {
-    choices: Array<{ message: { content: string } }>;
-  };
-
-  const routine = data.choices?.[0]?.message?.content ?? "";
-
-  const assessmentId = crypto.randomUUID();
-
-  req.log.info({ painArea, duration, goal, severity, sex, sport, assessmentId }, "Triggering saveAssessment");
-  void saveAssessment({
-    id:            assessmentId,
-    user_id:       userId ?? null,
-    session_id:    sessionId ?? null,
-    pain_location: painArea,
-    duration:      duration ?? null,
-    worsens:       Array.isArray(worsens) ? worsens : null,
-    goal:          goal ?? null,
-    severity:      typeof severity === "number" ? severity : null,
-    gender:        sex ?? null,
-    sport:         sport ?? null,
-    screen_json:   screen && Object.keys(screen).length > 0 ? screen : null,
-    routine_text:  routine,
-  });
-
-  res.json({ routine, assessmentId });
 });
 
 export default router;

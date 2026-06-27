@@ -1,0 +1,46 @@
+Perform a thorough security audit and fix all vulnerabilities in the MyoMap app. Here is everything that needs to be addressed:
+
+## 1. Environment variables
+- Make sure ALL sensitive keys are in environment variables and never hardcoded in the frontend or backend code: Supabase URL, Supabase anon key, Supabase service role key, Groq API key
+- The Groq API key must ONLY exist on the backend (Express server) — never exposed to the frontend
+- The Supabase service role key must ONLY exist on the backend — never in the frontend
+- Only the Supabase anon key and Supabase URL are allowed in the frontend
+- Audit every file and remove any hardcoded keys or secrets
+
+## 2. API rate limiting
+- Install and configure express-rate-limit on the Express server
+- Apply a general rate limit of 100 requests per 15 minutes per IP to all routes
+- Apply a stricter rate limit of 10 requests per 15 minutes per IP specifically to the AI/Groq endpoints (/api/daily-checkin and any other AI routes)
+- Return a clear error message when rate limit is hit: "Too many requests. Please wait a moment and try again."
+
+## 3. Input validation and sanitization
+- Validate and sanitize all user inputs on the backend before processing
+- For AI endpoints: limit the input length to 1000 characters maximum, reject empty inputs
+- For all API routes: validate that required fields are present before processing
+- Strip any HTML or script tags from user inputs to prevent XSS
+
+## 4. Supabase Row Level Security
+- Confirm RLS is enabled on all tables: users, assessments, and any other tables
+- Users should only be able to read and write their own data
+- The assessments table policy should enforce: user can only SELECT, INSERT, UPDATE, DELETE rows where user_id matches their Supabase auth user ID
+- The users table policy should enforce: user can only SELECT and UPDATE their own row
+
+## 5. CORS configuration
+- On the Express server, configure CORS to only allow requests from:
+  - http://localhost:5173 (local dev)
+  - https://web-builder-tool--sohancherukuri.replit.app (current Replit URL)
+  - The future Vercel domain (add a placeholder comment to update this after deployment)
+- Reject requests from any other origin
+
+## 6. Security headers
+- Install helmet.js on the Express server and enable it for all routes
+- This adds important security headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, etc.
+
+## 7. Auth protection
+- Make sure all dashboard, intake, and results routes are protected — if no active Supabase session exists, redirect to /welcome
+- The reset password page should only be accessible during a PASSWORD_RECOVERY session event
+- No sensitive user data should be logged to the console in production
+
+## 8. Error handling
+- Make sure the backend never exposes raw error messages or stack traces to the frontend
+- All API error responses should return a generic message like "Something went wrong. Please try again." while logging the actual error on the server side only

@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import { aiLimiter } from "../middlewares/rateLimiter";
+import { sanitizeText } from "../lib/sanitize";
 
 const router: IRouter = Router();
 
@@ -11,60 +13,74 @@ interface ChatMessage {
   content: string;
 }
 
-router.post("/daily-checkin", async (req, res): Promise<void> => {
-  const { message, conversationHistory = [] } = req.body as {
-    message?: string;
-    conversationHistory?: ChatMessage[];
-  };
+router.post("/daily-checkin", aiLimiter, async (req, res): Promise<void> => {
+  try {
+    const { message, conversationHistory = [] } = req.body as {
+      message?: unknown;
+      conversationHistory?: unknown;
+    };
 
-  if (!message || typeof message !== "string" || message.length > 2000) {
-    res.status(400).json({ error: "Missing or invalid message" });
-    return;
+    // Validate and sanitize the incoming message.
+    const cleanMessage = sanitizeText(message, 1000);
+    if (!cleanMessage) {
+      res.status(400).json({ error: "Missing or invalid message" });
+      return;
+    }
+
+    // Sanitize conversation history — accept only valid role/content pairs.
+    const history: ChatMessage[] = Array.isArray(conversationHistory)
+      ? conversationHistory
+          .filter(
+            (m): m is { role: "user" | "assistant"; content: string } =>
+              m !== null &&
+              typeof m === "object" &&
+              (m.role === "user" || m.role === "assistant") &&
+              typeof m.content === "string",
+          )
+          .map(m => ({ role: m.role, content: sanitizeText(m.content, 1000) }))
+      : [];
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      req.log.error("GROQ_API_KEY is not configured");
+      res.status(503).json({ error: "AI not configured" });
+      return;
+    }
+
+    const messages: ChatMessage[] = [...history, { role: "user", content: cleanMessage }];
+    req.log.info({ messageCount: messages.length }, "Daily check-in message received");
+
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        max_tokens: 600,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!groqRes.ok) {
+      const text = await groqRes.text();
+      req.log.error({ status: groqRes.status, body: text }, "Groq error in daily-checkin");
+      res.status(502).json({ error: "Something went wrong. Please try again." });
+      return;
+    }
+
+    const data = (await groqRes.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    const reply = data.choices?.[0]?.message?.content ?? "";
+    res.json({ reply });
+  } catch (err) {
+    req.log.error({ err }, "daily-checkin: unexpected error");
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ error: "AI not configured" });
-    return;
-  }
-
-  const messages: ChatMessage[] = [
-    ...conversationHistory,
-    { role: "user", content: message },
-  ];
-
-  req.log.info({ messageCount: messages.length }, "Daily check-in message received");
-
-  const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "openai/gpt-oss-20b",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages,
-      ],
-      max_tokens: 600,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!groqRes.ok) {
-    const text = await groqRes.text();
-    req.log.error({ status: groqRes.status, body: text }, "Groq error in daily-checkin");
-    res.status(502).json({ error: "AI error — please try again" });
-    return;
-  }
-
-  const data = (await groqRes.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
-  const reply = data.choices?.[0]?.message?.content ?? "";
-  res.json({ reply });
 });
 
 export default router;
