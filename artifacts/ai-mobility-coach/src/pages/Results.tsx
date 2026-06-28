@@ -667,7 +667,16 @@ export default function Results() {
                   {parsed.whatToAvoid.map((item, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
                       <span className="flex-shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-destructive/60" />
-                      {item}
+                      <span className="leading-relaxed">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => <span>{children}</span>,
+                            strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                          }}
+                        >
+                          {item}
+                        </ReactMarkdown>
+                      </span>
                     </li>
                   ))}
                 </ul>

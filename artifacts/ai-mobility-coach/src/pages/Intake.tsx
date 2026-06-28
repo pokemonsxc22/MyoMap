@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { SCREEN_QUESTIONS } from "@/lib/movementScreen";
 import { useUser } from "@/contexts/UserContext";
+import { supabase } from "@/lib/supabaseClient";
 
 const fadeInUp = {
   hidden:  { opacity: 0, y: 24 },
@@ -83,9 +84,34 @@ export default function Intake() {
       if (!res.ok || !data.routine) {
         throw new Error(data.error ?? "Something went wrong. Please try again.");
       }
-      sessionStorage.setItem("mobilityRoutine",   data.routine);
-      sessionStorage.setItem("mobilityFormData",  JSON.stringify(form));
-      if (data.assessmentId) sessionStorage.setItem("mobilityAssessmentId", data.assessmentId);
+
+      const assessmentId = data.assessmentId ?? crypto.randomUUID();
+
+      // Save assessment directly from the frontend using the authenticated
+      // Supabase client — this satisfies RLS (auth.uid() = user_id).
+      if (supabase && userId) {
+        const { error: sbError } = await supabase.from("assessments").upsert({
+          id:            assessmentId,
+          user_id:       userId,
+          session_id:    sessionId,
+          pain_location: form.painArea,
+          duration:      form.duration || null,
+          worsens:       form.worsens.length > 0 ? form.worsens : null,
+          goal:          form.goal || null,
+          severity:      form.severity > 0 ? form.severity : null,
+          gender:        form.sex || null,
+          sport:         form.sport || null,
+          screen_json:   Object.keys(form.screen).length > 0 ? form.screen : null,
+          routine_text:  data.routine,
+        });
+        if (sbError) {
+          console.error("[MyoMap] Assessment save failed:", sbError.message, sbError.details, sbError.hint);
+        }
+      }
+
+      sessionStorage.setItem("mobilityRoutine",     data.routine);
+      sessionStorage.setItem("mobilityFormData",    JSON.stringify(form));
+      sessionStorage.setItem("mobilityAssessmentId", assessmentId);
       setLocation("/results");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");

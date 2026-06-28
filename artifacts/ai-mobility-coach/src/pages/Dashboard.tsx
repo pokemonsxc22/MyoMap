@@ -280,7 +280,7 @@ export default function Dashboard() {
             <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-9 w-auto" />
           </div>
           <button
-            onClick={() => { signOut(); setLocation("/welcome"); }}
+            onClick={() => { void signOut().then(() => setLocation("/")); }}
             className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:border-border transition-colors text-xs font-medium"
           >
             <LogOut className="w-3.5 h-3.5" />

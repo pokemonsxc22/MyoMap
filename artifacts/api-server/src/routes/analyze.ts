@@ -284,6 +284,7 @@ router.post("/analyze", aiLimiter, async (req, res): Promise<void> => {
       },
       body: JSON.stringify({
         model: "openai/gpt-oss-20b",
+        max_tokens: 2500,
         messages: [
           {
             role: "system",
