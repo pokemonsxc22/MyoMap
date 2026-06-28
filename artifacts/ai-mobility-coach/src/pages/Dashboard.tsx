@@ -157,33 +157,59 @@ export default function Dashboard() {
       })
       .catch(() => {});
 
-    // Assessments
+    // Assessments — async/await so errors are never swallowed silently
     if (!supabase) { setLoadingData(false); return; }
-    void supabase
-      .from("assessments")
-      .select("id, pain_location, created_at, exercises_json, routine_text")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (!data) { setLoadingData(false); return; }
-        const seen = new Set<string>();
+
+    void (async () => {
+      try {
+        console.log("[MyoMap Dashboard] Fetching assessments for userId:", userId);
+
+        const { data, error } = await supabase
+          .from("assessments")
+          .select("id, pain_location, created_at, exercises_json, routine_text")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+
+        console.log("[MyoMap Dashboard] Supabase result:", { data, error });
+
+        if (error) {
+          console.error("[MyoMap Dashboard] Supabase error:", error.message, error.details, error.hint);
+          setLoadingData(false);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          console.log("[MyoMap Dashboard] No assessments found for this user.");
+          setRoutineGroups([]);
+          setLoadingData(false);
+          return;
+        }
+
+        // Build one card per unique pain location (most-recent assessment per area)
+        const seen  = new Set<string>();
         const groups: RoutineGroup[] = [];
         for (const row of data) {
           const loc = row.pain_location as string;
           if (!seen.has(loc)) {
             seen.add(loc);
             groups.push({
-              id:           row.id as string,
+              id:          row.id as string,
               painLocation: loc,
-              lastDate:     row.created_at as string,
-              exercises:    parseExercisesFromRow(row),
-              routineText:  (row.routine_text as string | null) ?? null,
+              lastDate:    row.created_at as string,
+              exercises:   parseExercisesFromRow(row),
+              routineText: (row.routine_text as string | null) ?? null,
             });
           }
         }
+
+        console.log("[MyoMap Dashboard] Routine groups built:", groups.length, groups.map((g) => g.painLocation));
         setRoutineGroups(groups);
+      } catch (err) {
+        console.error("[MyoMap Dashboard] Unexpected error fetching assessments:", err);
+      } finally {
         setLoadingData(false);
-      });
+      }
+    })();
   }, [userId]);
 
   // ── Handlers ───────────────────────────────────────────────────
