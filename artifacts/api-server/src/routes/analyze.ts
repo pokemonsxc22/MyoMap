@@ -6,36 +6,48 @@ import { sanitizeText, sanitizeStringArray } from "../lib/sanitize";
 const router: IRouter = Router();
 
 const LABELS: Record<string, string> = {
-  "lower-back":       "lower back",
-  "mid-back":         "mid back",
-  "upper-back":       "upper back",
-  "neck-shoulders":   "neck and shoulders",
-  "chest":            "chest",
-  "arms":             "arms",
-  "abs-core":         "abs / core",
-  "quads":            "quads",
-  "hamstrings":       "hamstrings",
-  "calves":           "calves",
-  "knees":            "knees",
-  "hips":             "hips",
-  "just-started":     "just started",
-  "few-weeks":        "a few weeks",
-  "months-plus":      "months or longer",
-  "sitting":          "sitting too long",
-  "after-workouts":   "after workouts",
-  "morning":          "in the morning",
-  "no-pattern":       "no clear pattern",
-  "reduce-pain":      "reduce pain",
+  "lower-back":          "lower back",
+  "mid-back":            "mid back",
+  "upper-back":          "upper back",
+  "neck-shoulders":      "neck and shoulders",
+  "chest":               "chest",
+  "arms":                "arms",
+  "abs-core":            "abs / core",
+  "quads":               "quads",
+  "hamstrings":          "hamstrings",
+  "calves":              "calves",
+  "knees":               "knees",
+  "hips":                "hips",
+  "just-started":        "just started",
+  "few-weeks":           "a few weeks",
+  "months-plus":         "months or longer",
+  "sitting":             "sitting too long",
+  "after-workouts":      "after workouts",
+  "morning":             "in the morning",
+  "no-pattern":          "no clear pattern",
+  "reduce-pain":         "reduce pain",
   "improve-flexibility": "improve flexibility",
-  "sports-performance": "move better for sports",
-  "general-health":   "general health",
-  "running":          "running",
-  "basketball":       "basketball",
-  "weightlifting":    "weightlifting",
-  "swimming":         "swimming",
-  "soccer":           "soccer",
-  "general-fitness":  "general fitness",
-  "other":            "general activity",
+  "sports-performance":  "move better for sports",
+  "general-health":      "general health",
+  "running":             "running",
+  "basketball":          "basketball",
+  "weightlifting":       "weightlifting",
+  "swimming":            "swimming",
+  "soccer":              "soccer",
+  "general-fitness":     "general fitness",
+  "other":               "general activity",
+  // What makes it better
+  "rest":                "rest",
+  "movement":            "movement / walking around",
+  "heat":                "heat",
+  "ice":                 "ice",
+  "stretching":          "stretching",
+  "nothing-yet":         "nothing yet",
+  // Activity level
+  "sedentary":           "sedentary (mostly sitting)",
+  "lightly-active":      "lightly active (light walking/movement)",
+  "moderately-active":   "moderately active (exercise 3–4×/week)",
+  "very-active":         "very active (daily intense training)",
 };
 
 function label(key: string): string {
@@ -194,27 +206,35 @@ function buildScreenLine(id: string, answer: "yes" | "no"): string {
 router.post("/analyze", aiLimiter, async (req, res): Promise<void> => {
   try {
     const {
-      painArea: rawPainArea,
-      duration: rawDuration,
-      worsens:  rawWorsens,
-      goal:     rawGoal,
-      severity: rawSeverity,
-      sex:      rawSex,
-      sport:    rawSport,
-      screen:   rawScreen,
-      sessionId: rawSessionId,
-      userId:   rawUserId,
+      painArea:       rawPainArea,
+      duration:       rawDuration,
+      worsens:        rawWorsens,
+      betters:        rawBetters,
+      goal:           rawGoal,
+      severity:       rawSeverity,
+      sex:            rawSex,
+      sport:          rawSport,
+      activityLevel:  rawActivityLevel,
+      injuryHistory:  rawInjuryHistory,
+      injuryDetails:  rawInjuryDetails,
+      screen:         rawScreen,
+      sessionId:      rawSessionId,
+      userId:         rawUserId,
     } = req.body as Record<string, unknown>;
 
     // Sanitize and validate all fields — strips HTML, truncates to max length.
-    const painArea  = sanitizeText(rawPainArea, 100);
-    const duration  = sanitizeText(rawDuration, 100);
-    const goal      = sanitizeText(rawGoal, 100);
-    const sex       = sanitizeText(rawSex, 50);
-    const sport     = sanitizeText(rawSport, 100);
-    const sessionId = sanitizeText(rawSessionId, 200);
-    const userId    = sanitizeText(rawUserId, 200);
-    const worsens   = sanitizeStringArray(rawWorsens, 100);
+    const painArea       = sanitizeText(rawPainArea, 100);
+    const duration       = sanitizeText(rawDuration, 100);
+    const goal           = sanitizeText(rawGoal, 100);
+    const sex            = sanitizeText(rawSex, 50);
+    const sport          = sanitizeText(rawSport, 100);
+    const activityLevel  = sanitizeText(rawActivityLevel, 100);
+    const injuryHistory  = sanitizeText(rawInjuryHistory, 10);   // "yes" | "no"
+    const injuryDetails  = sanitizeText(rawInjuryDetails, 500);
+    const sessionId      = sanitizeText(rawSessionId, 200);
+    const userId         = sanitizeText(rawUserId, 200);
+    const worsens        = sanitizeStringArray(rawWorsens, 100);
+    const betters        = sanitizeStringArray(rawBetters, 100);
     const severity  =
       typeof rawSeverity === "number" && rawSeverity >= 1 && rawSeverity <= 5
         ? rawSeverity
@@ -261,14 +281,27 @@ router.post("/analyze", aiLimiter, async (req, res): Promise<void> => {
       .map(([id, ans]) => buildScreenLine(id, ans))
       .filter(Boolean);
 
+    const betterLabels =
+      betters.length > 0 ? betters.map(label).join(", ") : "nothing specific yet";
+
+    const injuryLine =
+      injuryHistory === "yes"
+        ? `They have had a prior injury or surgery in this area${injuryDetails ? `: ${injuryDetails}` : ""}.`
+        : injuryHistory === "no"
+        ? "No prior injuries or surgeries in this area."
+        : "";
+
     const userMessage = [
       `I have pain or tightness in my ${label(painArea)}.`,
       `I've had this issue for ${label(duration)}.`,
       `Pain severity: ${severityText}.`,
       `It gets worse when: ${worsenLabels}.`,
+      `It gets better with: ${betterLabels}.`,
       `My main goal is to ${label(goal)}.`,
+      activityLevel ? `Activity level: ${label(activityLevel)}.` : "",
       sex   ? `Biological sex: ${sex}.` : "",
       sport ? `My primary sport or activity is ${label(sport)}.` : "",
+      injuryLine,
       screenLines.length > 0 ? `Movement screen results: ${screenLines.join(" ")}` : "",
     ]
       .filter(Boolean)

@@ -38,14 +38,18 @@ export default function Intake() {
   });
 
   const [form, setForm] = useState({
-    painArea:  "",
-    duration:  "",
-    worsens:   [] as string[],
-    goal:      "",
-    severity:  0,
-    sex:       "",
-    sport:     "",
-    screen:    {} as Record<string, ScreenAnswer>,
+    painArea:       "",
+    duration:       "",
+    worsens:        [] as string[],
+    betters:        [] as string[],
+    injuryHistory:  "" as "" | "yes" | "no",
+    injuryDetails:  "",
+    activityLevel:  "",
+    goal:           "",
+    severity:       0,
+    sex:            "",
+    sport:          "",
+    screen:         {} as Record<string, ScreenAnswer>,
   });
 
   // Redirect to welcome screen if no user identity yet
@@ -59,6 +63,15 @@ export default function Intake() {
       worsens: prev.worsens.includes(value)
         ? prev.worsens.filter((v) => v !== value)
         : [...prev.worsens, value],
+    }));
+  };
+
+  const handleBetterCheckbox = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      betters: prev.betters.includes(value)
+        ? prev.betters.filter((v) => v !== value)
+        : [...prev.betters, value],
     }));
   };
 
@@ -78,7 +91,15 @@ export default function Intake() {
       const res = await fetch("/api/analyze", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ ...form, sessionId, userId: userId ?? null }),
+        body:    JSON.stringify({
+          ...form,
+          sessionId,
+          userId:        userId ?? null,
+          betters:       form.betters,
+          injuryHistory: form.injuryHistory,
+          injuryDetails: form.injuryDetails,
+          activityLevel: form.activityLevel,
+        }),
       });
       const data = (await res.json()) as { routine?: string; error?: string; assessmentId?: string };
       if (!res.ok || !data.routine) {
@@ -126,12 +147,14 @@ export default function Intake() {
     : activeQuestions.every((q) => form.screen[q.id] !== undefined);
 
   const isValid =
-    form.painArea  !== "" &&
-    form.duration  !== "" &&
-    form.goal      !== "" &&
-    form.severity  >   0  &&
-    form.sex       !== "" &&
-    form.sport     !== "" &&
+    form.painArea      !== "" &&
+    form.duration      !== "" &&
+    form.goal          !== "" &&
+    form.severity      >   0  &&
+    form.sex           !== "" &&
+    form.sport         !== "" &&
+    form.activityLevel !== "" &&
+    form.injuryHistory !== "" &&
     screenComplete;
 
   const selectClass =
@@ -179,7 +202,7 @@ export default function Intake() {
             {/* Q1 — Pain area */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 1 of 8
+                Question 1 of 11
               </label>
               <p className="text-xl font-bold mb-4">Where do you feel pain or tightness?</p>
               <select
@@ -208,7 +231,7 @@ export default function Intake() {
             {/* Q2 — Duration */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 2 of 8
+                Question 2 of 11
               </label>
               <p className="text-xl font-bold mb-4">How long have you had this issue?</p>
               <select
@@ -219,8 +242,8 @@ export default function Intake() {
                 className={selectClass}
               >
                 <option value="" disabled>Select a duration...</option>
-                <option value="just-started">Just started</option>
-                <option value="few-weeks">A few weeks</option>
+                <option value="just-started">Just started (less than a week)</option>
+                <option value="few-weeks">A few weeks (1–4 weeks)</option>
                 <option value="months-plus">Months or longer</option>
               </select>
             </div>
@@ -228,7 +251,7 @@ export default function Intake() {
             {/* Q3 — Severity */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 3 of 8
+                Question 3 of 11
               </label>
               <p className="text-xl font-bold mb-2">How severe is your pain or tightness?</p>
               <p className="text-sm text-muted-foreground mb-6">
@@ -259,7 +282,7 @@ export default function Intake() {
             {/* Q4 — What makes it worse */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 4 of 8
+                Question 4 of 11
               </label>
               <p className="text-xl font-bold mb-4">What makes it worse?</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -306,10 +329,129 @@ export default function Intake() {
               </div>
             </div>
 
-            {/* Q5 — Main goal */}
+            {/* Q5 — What makes it better (NEW) */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 5 of 8
+                Question 5 of 11
+              </label>
+              <p className="text-xl font-bold mb-4">What makes it better? <span className="text-base font-normal text-muted-foreground">(select all that apply)</span></p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { value: "rest",        label: "Rest" },
+                  { value: "movement",    label: "Movement / walking" },
+                  { value: "heat",        label: "Heat" },
+                  { value: "ice",         label: "Ice" },
+                  { value: "stretching",  label: "Stretching" },
+                  { value: "nothing-yet", label: "Nothing yet" },
+                ].map(({ value, label }) => {
+                  const checked = form.betters.includes(value);
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => handleBetterCheckbox(value)}
+                      data-testid={`checkbox-betters-${value}`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                        checked
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                      }`}
+                    >
+                      <span
+                        className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border transition-colors ${
+                          checked ? "bg-primary border-primary" : "border-border/60"
+                        }`}
+                      >
+                        {checked && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="font-medium text-sm">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Q6 — Injury history (NEW) */}
+            <div className="p-6 rounded-2xl bg-card border border-border/50">
+              <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
+                Question 6 of 11
+              </label>
+              <p className="text-xl font-bold mb-4">Have you had any injuries or surgeries in this area?</p>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {[
+                  { value: "yes" as const, label: "Yes" },
+                  { value: "no"  as const, label: "No" },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setForm({ ...form, injuryHistory: value })}
+                    data-testid={`injury-history-${value}`}
+                    className={`py-4 rounded-xl border font-semibold text-base transition-all ${
+                      form.injuryHistory === value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {form.injuryHistory === "yes" && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Briefly describe the injury or surgery:</p>
+                  <textarea
+                    value={form.injuryDetails}
+                    onChange={(e) => setForm({ ...form, injuryDetails: e.target.value.slice(0, 300) })}
+                    placeholder="e.g. Herniated disc L4-L5, ACL surgery 2 years ago..."
+                    rows={2}
+                    data-testid="injury-details"
+                    className="w-full bg-background border border-border/60 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none focus:border-primary/40 transition-colors leading-relaxed"
+                  />
+                  <p className="text-xs text-muted-foreground/50 text-right mt-1">{form.injuryDetails.length}/300</p>
+                </div>
+              )}
+            </div>
+
+            {/* Q7 — Activity level (NEW) */}
+            <div className="p-6 rounded-2xl bg-card border border-border/50">
+              <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
+                Question 7 of 11
+              </label>
+              <p className="text-xl font-bold mb-4">What is your activity level?</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { value: "sedentary",          label: "Sedentary",          sub: "Mostly sitting, little movement" },
+                  { value: "lightly-active",     label: "Lightly active",     sub: "Light walking or movement" },
+                  { value: "moderately-active",  label: "Moderately active",  sub: "Exercise 3–4× per week" },
+                  { value: "very-active",        label: "Very active",        sub: "Daily intense training" },
+                ].map(({ value, label, sub }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setForm({ ...form, activityLevel: value })}
+                    data-testid={`activity-${value}`}
+                    className={`flex flex-col items-start px-4 py-3.5 rounded-xl border text-left transition-all ${
+                      form.activityLevel === value
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                    }`}
+                  >
+                    <span className={`font-semibold text-sm mb-0.5 ${form.activityLevel === value ? "text-primary" : ""}`}>{label}</span>
+                    <span className="text-xs text-muted-foreground/70 leading-snug">{sub}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Q8 — Main goal */}
+            <div className="p-6 rounded-2xl bg-card border border-border/50">
+              <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
+                Question 8 of 11
               </label>
               <p className="text-xl font-bold mb-4">What's your main goal?</p>
               <select
@@ -324,13 +466,14 @@ export default function Intake() {
                 <option value="improve-flexibility">Improve flexibility</option>
                 <option value="sports-performance">Move better for sports</option>
                 <option value="general-health">General health</option>
+                <option value="return-to-sport">Return to sport</option>
               </select>
             </div>
 
-            {/* Q6 — Biological sex */}
+            {/* Q9 — Biological sex */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 6 of 8
+                Question 9 of 11
               </label>
               <p className="text-xl font-bold mb-4">What is your biological sex?</p>
               <div className="grid grid-cols-2 gap-3">
@@ -355,10 +498,10 @@ export default function Intake() {
               </div>
             </div>
 
-            {/* Q7 — Sport / Main Activity */}
+            {/* Q10 — Sport / Main Activity */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 7 of 8
+                Question 10 of 11
               </label>
               <p className="text-xl font-bold mb-2">What is your sport or main activity?</p>
               <p className="text-sm text-muted-foreground mb-4">
@@ -382,10 +525,10 @@ export default function Intake() {
               </select>
             </div>
 
-            {/* Q8 — Movement Screen (dynamic) */}
+            {/* Q11 — Movement Screen (dynamic) */}
             <div className="p-6 rounded-2xl bg-card border border-border/50">
               <label className="block text-sm font-semibold text-primary mb-1 tracking-widest uppercase">
-                Question 8 of 8
+                Question 11 of 11
               </label>
               <p className="text-xl font-bold mb-2">Quick movement screen</p>
               <p className="text-sm text-muted-foreground mb-6">

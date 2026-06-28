@@ -1,0 +1,53 @@
+Make the following improvements to MyoMap:
+
+## 1. Progress tracking — session feedback after completing a routine
+On the dashboard under "Track Your Progress", add a session feedback card that users can fill out after completing their exercises. It should include:
+
+- A difficulty rating: "How hard were the exercises?" with 3 options displayed as selectable buttons: Easy / Moderate / Hard
+- A progress rating: "Did your pain/mobility improve?" with 3 options: Better / Same / Worse
+- A short text area: "Anything else to note?" (optional, max 300 characters)
+- A "Save Progress" button (teal, full width)
+- Save this feedback to Supabase in a new table called `progress_logs` with columns: id (uuid), user_id (uuid), assessment_id (uuid), difficulty (text), improvement (text), notes (text), created_at (timestamp)
+- Show a history of past progress logs below the feedback form, grouped by date, showing difficulty, improvement, and notes for each session
+- Run this SQL in Supabase to create the table:
+
+CREATE TABLE IF NOT EXISTS progress_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  assessment_id UUID,
+  difficulty TEXT,
+  improvement TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE progress_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "progress_logs_user_access" ON progress_logs
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+GRANT ALL ON progress_logs TO authenticated;
+
+## 2. Progress chatbot
+Add a dedicated AI chatbot on the dashboard's progress tracking section with:
+- Heading: "Progress Chat" 
+- Subheading: "Tell MyoMap AI how you felt before and after your routine"
+- The chat is pre-loaded with a system prompt that knows the user's most recent assessment (pain location, reported issue) and their recent progress logs (difficulty, improvement ratings)
+- Suggested starter prompts shown as clickable chips below the input:
+  - "Before I started I felt..."
+  - "After doing the exercises I noticed..."
+  - "I'm struggling with..."
+  - "I think I'm improving because..."
+- The AI responds with encouragement, adjustments to try, or flags if the user should see a professional
+- Style with teal (#0D9488) accent, clean card layout
+
+## 3. More movement screen questions (6-7 questions total)
+Update the movement/intake screen to include 6-7 questions instead of the current amount. Add these additional questions if not already present:
+- "Where exactly is your pain or discomfort?" (body region selector or text input)
+- "How long have you had this issue?" (options: Less than a week / 1-4 weeks / 1-3 months / More than 3 months)
+- "What makes it worse?" (multi-select: Sitting / Standing / Walking / Bending / Twisting / Exercise / Morning stiffness / None of the above)
+- "What makes it better?" (multi-select: Rest / Movement / Heat / Ice / Stretching / Nothing yet)
+- "Have you had any injuries or surgeries in this area?" (Yes / No — if Yes, show a text field)
+- "What is your activity level?" (Sedentary / Lightly active / Moderately active / Very active)
+- "What is your main goal?" (Reduce pain / Improve mobility / Return to sport / General wellness)
+
+Make sure all new intake answers are passed to the Groq AI prompt so the routine is more personalized and accurate.
+
+Keep all existing features fully intact.

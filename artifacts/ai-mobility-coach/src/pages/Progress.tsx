@@ -1,75 +1,204 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, TrendingUp, RotateCcw, Home, CheckCircle2, MinusCircle, ArrowDownCircle } from "lucide-react";
+import {
+  TrendingUp, Home, RotateCcw, CheckCircle2, MinusCircle,
+  ArrowDownCircle, MessageCircle, Send, ChevronDown, ChevronUp,
+  Calendar, Activity,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { type ComparisonResult } from "@/lib/movementScreen";
+import { supabase } from "@/lib/supabaseClient";
+import { useUser } from "@/contexts/UserContext";
+import ReactMarkdown from "react-markdown";
 
 const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
+  hidden:  { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" as const } },
 };
 
 const stagger = {
-  hidden: { opacity: 0 },
+  hidden:  { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 
 const STATUS_CONFIG = {
   improved: {
-    label: "Improved",
-    icon: CheckCircle2,
-    iconClass: "text-green-400",
-    bg: "bg-green-500/10",
-    border: "border-green-500/20",
-    labelClass: "text-green-400",
-    suffix: "✓",
+    label: "Improved", icon: CheckCircle2,
+    iconClass: "text-green-400", bg: "bg-green-500/10",
+    border: "border-green-500/20", labelClass: "text-green-400", suffix: "✓",
   },
   maintained: {
-    label: "Maintained",
-    icon: CheckCircle2,
-    iconClass: "text-primary",
-    bg: "bg-primary/10",
-    border: "border-primary/20",
-    labelClass: "text-primary",
-    suffix: "✓",
+    label: "Maintained", icon: CheckCircle2,
+    iconClass: "text-primary", bg: "bg-primary/10",
+    border: "border-primary/20", labelClass: "text-primary", suffix: "✓",
   },
   "no-change": {
-    label: "No change",
-    icon: MinusCircle,
-    iconClass: "text-muted-foreground",
-    bg: "bg-secondary/30",
-    border: "border-border/40",
-    labelClass: "text-muted-foreground",
-    suffix: "",
+    label: "No change", icon: MinusCircle,
+    iconClass: "text-muted-foreground", bg: "bg-secondary/30",
+    border: "border-border/40", labelClass: "text-muted-foreground", suffix: "",
   },
   regressed: {
-    label: "Needs attention",
-    icon: ArrowDownCircle,
-    iconClass: "text-amber-400",
-    bg: "bg-amber-400/10",
-    border: "border-amber-400/20",
-    labelClass: "text-amber-400",
-    suffix: "",
+    label: "Needs attention", icon: ArrowDownCircle,
+    iconClass: "text-amber-400", bg: "bg-amber-400/10",
+    border: "border-amber-400/20", labelClass: "text-amber-400", suffix: "",
   },
 } as const;
 
+interface ProgressLog {
+  id: string;
+  user_id: string;
+  assessment_id: string | null;
+  difficulty: string | null;
+  improvement: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+interface ChatEntry { question: string; answer: string }
+
+const STARTER_CHIPS = [
+  "Before I started I felt...",
+  "After doing the exercises I noticed...",
+  "I'm struggling with...",
+  "I think I'm improving because...",
+];
+
+const DIFFICULTY_OPTIONS = [
+  { value: "easy",     label: "Easy",     color: "text-green-400",  bg: "bg-green-500/10",  border: "border-green-500/25" },
+  { value: "moderate", label: "Moderate", color: "text-amber-400",  bg: "bg-amber-400/10",  border: "border-amber-400/25" },
+  { value: "hard",     label: "Hard",     color: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/25" },
+];
+
+const IMPROVEMENT_OPTIONS = [
+  { value: "better", label: "Better", color: "text-green-400",          bg: "bg-green-500/10",  border: "border-green-500/25" },
+  { value: "same",   label: "Same",   color: "text-muted-foreground",   bg: "bg-secondary/30",  border: "border-border/40" },
+  { value: "worse",  label: "Worse",  color: "text-destructive",        bg: "bg-destructive/10", border: "border-destructive/25" },
+];
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function Progress() {
   const [, setLocation] = useLocation();
+  const { userId } = useUser();
+
+  const assessmentId = sessionStorage.getItem("mobilityAssessmentId");
+  const formDataRaw  = sessionStorage.getItem("mobilityFormData");
+  const formData     = formDataRaw ? (JSON.parse(formDataRaw) as Record<string, unknown>) : {};
+
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([]);
+  const [showComparisons, setShowComparisons] = useState(false);
+
+  const [difficulty,   setDifficulty]  = useState("");
+  const [improvement,  setImprovement] = useState("");
+  const [notes,        setNotes]       = useState("");
+  const [savingFeedback, setSavingFeedback] = useState(false);
+  const [feedbackSaved,  setFeedbackSaved]  = useState(false);
+  const [feedbackError,  setFeedbackError]  = useState<string | null>(null);
+
+  const [logs,        setLogs]        = useState<ProgressLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+
+  const [chatInput,    setChatInput]    = useState("");
+  const [chatThread,   setChatThread]   = useState<ChatEntry[]>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [chatLoading,  setChatLoading]  = useState(false);
+  const [chatError,    setChatError]    = useState<string | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("mobilityProgress");
     if (raw) {
-      try {
-        setComparisons(JSON.parse(raw) as ComparisonResult[]);
-      } catch {
-        // ignore parse errors
-      }
+      try { setComparisons(JSON.parse(raw) as ComparisonResult[]); } catch { }
     }
   }, []);
 
-  const improved  = comparisons.filter((c) => c.status === "improved").length;
+  useEffect(() => {
+    if (!supabase || !userId) { setLogsLoading(false); return; }
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from("progress_logs")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+        setLogs((data ?? []) as ProgressLog[]);
+      } finally {
+        setLogsLoading(false);
+      }
+    })();
+  }, [userId]);
+
+  const refreshLogs = async () => {
+    if (!supabase || !userId) return;
+    const { data } = await supabase
+      .from("progress_logs")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    setLogs((data ?? []) as ProgressLog[]);
+  };
+
+  const handleSaveFeedback = async () => {
+    if (!supabase || !userId || !difficulty || !improvement) return;
+    setSavingFeedback(true);
+    setFeedbackError(null);
+    const { error } = await supabase.from("progress_logs").insert({
+      user_id:       userId,
+      assessment_id: assessmentId || null,
+      difficulty,
+      improvement,
+      notes:         notes.trim() || null,
+    });
+    if (error) {
+      setFeedbackError(error.message);
+    } else {
+      setFeedbackSaved(true);
+      setDifficulty("");
+      setImprovement("");
+      setNotes("");
+      await refreshLogs();
+    }
+    setSavingFeedback(false);
+  };
+
+  const handleChat = async () => {
+    const question = chatInput.trim();
+    if (!question || chatLoading) return;
+    setChatInput("");
+    setChatLoading(true);
+    setChatError(null);
+
+    const outgoing = [...chatMessages, { role: "user" as const, content: question }];
+    try {
+      const res = await fetch("/api/progress-chat", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: outgoing,
+          context: {
+            painArea:    formData.painArea ?? "",
+            goal:        formData.goal ?? "",
+            recentLogs:  logs.slice(0, 5),
+          },
+        }),
+      });
+      const data = (await res.json()) as { answer?: string; error?: string };
+      if (!res.ok || !data.answer) throw new Error(data.error ?? "Something went wrong");
+      setChatMessages([...outgoing, { role: "assistant", content: data.answer }]);
+      setChatThread((prev) => [...prev, { question, answer: data.answer! }]);
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const improved   = comparisons.filter((c) => c.status === "improved").length;
   const maintained = comparisons.filter((c) => c.status === "maintained").length;
 
   return (
@@ -85,18 +214,17 @@ export default function Progress() {
           </div>
           <div className="flex items-center gap-1.5">
             <button
+              onClick={() => setLocation("/dashboard")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+            >
+              Dashboard
+            </button>
+            <button
               onClick={() => setLocation("/")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
             >
               <Home className="w-3.5 h-3.5" />
               Home
-            </button>
-            <button
-              onClick={() => setLocation("/results")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-              data-testid="button-nav-results"
-            >
-              My Routine
             </button>
           </div>
         </div>
@@ -108,95 +236,360 @@ export default function Progress() {
           {/* Header */}
           <motion.div variants={fadeInUp} className="mb-8">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              <span className="text-xs font-semibold text-primary tracking-widest uppercase">Progress</span>
+              <TrendingUp className="w-5 h-5 text-teal-500" />
+              <span className="text-xs font-semibold text-teal-500 tracking-widest uppercase">Progress</span>
             </div>
-            <h1 className="text-3xl font-black leading-tight">Your Movement Progress</h1>
-            {comparisons.length > 0 && (
-              <p className="text-muted-foreground mt-2">
-                {improved > 0
-                  ? `${improved} improvement${improved > 1 ? "s" : ""} since your last assessment${maintained > 0 ? ` · ${maintained} maintained` : ""}.`
-                  : maintained > 0
-                  ? `${maintained} movement${maintained > 1 ? "s" : ""} maintained — keep up the routine.`
-                  : "Keep working your routine — progress takes consistency."}
-              </p>
+            <h1 className="text-3xl font-black leading-tight">Track Your Progress</h1>
+            <p className="text-muted-foreground mt-2">Log how your session went and chat with AI about your recovery.</p>
+          </motion.div>
+
+          {/* ── Session Feedback Card ── */}
+          <motion.div variants={fadeInUp} className="mb-6">
+            <div className="rounded-2xl bg-card border border-teal-500/20 overflow-hidden">
+              <div className="px-5 pt-5 pb-4 border-b border-border/30">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Activity className="w-4 h-4 text-teal-500" />
+                  <h2 className="text-sm font-bold">Log Today's Session</h2>
+                </div>
+                <p className="text-xs text-muted-foreground">Record how your exercises felt after completing your routine</p>
+              </div>
+
+              {feedbackSaved ? (
+                <div className="px-5 py-8 text-center">
+                  <div className="w-12 h-12 rounded-full bg-teal-500/15 border border-teal-500/30 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 className="w-6 h-6 text-teal-500" />
+                  </div>
+                  <p className="font-bold text-base mb-1">Session logged!</p>
+                  <p className="text-sm text-muted-foreground mb-4">Your progress has been saved.</p>
+                  <button
+                    onClick={() => setFeedbackSaved(false)}
+                    className="text-xs text-teal-500 hover:text-teal-400 font-medium transition-colors"
+                  >
+                    Log another session
+                  </button>
+                </div>
+              ) : (
+                <div className="px-5 pt-5 pb-5 space-y-5">
+                  {/* Difficulty */}
+                  <div>
+                    <p className="text-sm font-semibold mb-2.5">How hard were the exercises?</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {DIFFICULTY_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setDifficulty(opt.value)}
+                          className={`py-3 rounded-xl border font-semibold text-sm transition-all ${
+                            difficulty === opt.value
+                              ? `${opt.bg} ${opt.border} ${opt.color}`
+                              : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                          }`}
+                          data-testid={`difficulty-${opt.value}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Improvement */}
+                  <div>
+                    <p className="text-sm font-semibold mb-2.5">Did your pain or mobility improve?</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {IMPROVEMENT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setImprovement(opt.value)}
+                          className={`py-3 rounded-xl border font-semibold text-sm transition-all ${
+                            improvement === opt.value
+                              ? `${opt.bg} ${opt.border} ${opt.color}`
+                              : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                          }`}
+                          data-testid={`improvement-${opt.value}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <p className="text-sm font-semibold mb-2">Anything else to note? <span className="font-normal text-muted-foreground">(optional)</span></p>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value.slice(0, 300))}
+                      placeholder="e.g. My lower back felt looser after the cat-cow stretch..."
+                      rows={3}
+                      className="w-full bg-background border border-border/60 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none focus:border-teal-500/40 transition-colors leading-relaxed"
+                      data-testid="notes-input"
+                    />
+                    <p className="text-xs text-muted-foreground/50 text-right mt-1">{notes.length}/300</p>
+                  </div>
+
+                  {feedbackError && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                      {feedbackError}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={() => void handleSaveFeedback()}
+                    disabled={savingFeedback || !difficulty || !improvement || !userId}
+                    className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white border-0 font-semibold shadow-[0_0_20px_-6px_rgba(13,148,136,0.5)] disabled:opacity-40"
+                    data-testid="button-save-feedback"
+                  >
+                    {savingFeedback ? "Saving..." : "Save Progress"}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* ── Progress Chat ── */}
+          <motion.div variants={fadeInUp} className="mb-6">
+            <div className="rounded-2xl bg-card border border-teal-500/20 overflow-hidden">
+              <div className="px-5 pt-5 pb-4 border-b border-border/30 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center flex-shrink-0">
+                  <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold leading-tight">Progress Chat</h2>
+                  <p className="text-xs text-muted-foreground">Tell MyoMap AI how you felt before and after your routine</p>
+                </div>
+              </div>
+
+              {/* Chat Thread */}
+              {chatThread.length > 0 && (
+                <div className="px-5 pt-4 space-y-5 max-h-80 overflow-y-auto">
+                  {chatThread.map((entry, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-end">
+                        <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/25 text-sm text-foreground">
+                          {entry.question}
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center mt-0.5">
+                          <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
+                        </div>
+                        <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tl-sm bg-teal-500/8 border border-teal-500/15 text-sm text-foreground leading-relaxed">
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                            }}
+                          >
+                            {entry.answer}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={chatBottomRef} />
+                </div>
+              )}
+
+              {/* Typing indicator */}
+              {chatLoading && (
+                <div className="px-5 pt-4 flex items-center gap-2">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center">
+                    <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
+                  </div>
+                  <div className="flex gap-1.5 items-center px-4 py-3 rounded-2xl rounded-tl-sm bg-teal-500/8 border border-teal-500/15">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500/60 animate-bounce [animation-delay:0ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500/60 animate-bounce [animation-delay:150ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500/60 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              )}
+
+              {chatError && (
+                <div className="px-5 pt-3">
+                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                    {chatError}
+                  </div>
+                </div>
+              )}
+
+              {/* Starter chips */}
+              {chatThread.length === 0 && !chatLoading && (
+                <div className="px-4 pt-4 flex flex-wrap gap-2">
+                  {STARTER_CHIPS.map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setChatInput(chip)}
+                      className="px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs font-medium text-teal-400 hover:bg-teal-500/20 transition-all"
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Input */}
+              <div className="px-4 pb-4 pt-3">
+                <div className="flex gap-3 p-3.5 rounded-xl bg-background border border-border/50 focus-within:border-teal-500/40 transition-colors">
+                  <textarea
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleChat();
+                      }
+                    }}
+                    placeholder="Share how your routine went..."
+                    rows={2}
+                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
+                    data-testid="progress-chat-input"
+                  />
+                  <button
+                    onClick={() => void handleChat()}
+                    disabled={!chatInput.trim() || chatLoading}
+                    className="self-end flex-shrink-0 w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    data-testid="progress-chat-submit"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground/40 mt-2 pl-1">Enter to send · Shift+Enter for new line</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── Progress History ── */}
+          <motion.div variants={fadeInUp} className="mb-6">
+            <h2 className="text-xs font-semibold text-teal-500 tracking-widest uppercase mb-3 flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5" />
+              Session History
+            </h2>
+
+            {logsLoading ? (
+              <div className="p-6 rounded-2xl bg-card border border-border/50 text-center">
+                <p className="text-sm text-muted-foreground">Loading history...</p>
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-card border border-border/50 text-center">
+                <p className="text-sm text-muted-foreground">No sessions logged yet. Complete your first routine above to start tracking.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {logs.map((log) => {
+                  const diffOpt = DIFFICULTY_OPTIONS.find((o) => o.value === log.difficulty);
+                  const imprOpt = IMPROVEMENT_OPTIONS.find((o) => o.value === log.improvement);
+                  return (
+                    <div key={log.id} className="p-4 rounded-2xl bg-card border border-border/50" data-testid={`log-${log.id}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-medium text-muted-foreground">{formatDate(log.created_at)}</span>
+                        <div className="flex items-center gap-2">
+                          {diffOpt && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${diffOpt.bg} ${diffOpt.color} border ${diffOpt.border}`}>
+                              {diffOpt.label}
+                            </span>
+                          )}
+                          {imprOpt && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${imprOpt.bg} ${imprOpt.color} border ${imprOpt.border}`}>
+                              {imprOpt.label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {log.notes && (
+                        <p className="text-sm text-muted-foreground leading-relaxed">{log.notes}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </motion.div>
 
-          {comparisons.length === 0 ? (
-            <motion.div variants={fadeInUp} className="p-8 rounded-2xl bg-card border border-border/50 text-center space-y-4">
-              <p className="text-lg font-semibold">No comparison data yet.</p>
-              <p className="text-muted-foreground text-sm">
-                Retake your movement screen to see how you've improved since your original assessment.
-              </p>
-              <Button
-                onClick={() => setLocation("/retake")}
-                className="mt-2 bg-primary text-white hover:bg-primary/90"
-                data-testid="button-go-retake"
+          {/* ── Movement Comparison (collapsible) ── */}
+          {comparisons.length > 0 && (
+            <motion.div variants={fadeInUp} className="mb-6">
+              <button
+                onClick={() => setShowComparisons((v) => !v)}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-card border border-border/50 hover:border-border transition-colors"
+                data-testid="button-toggle-comparisons"
               >
-                Retake Movement Screen
-              </Button>
-            </motion.div>
-          ) : (
-            <>
-              {/* Comparison cards */}
-              <motion.div variants={stagger} className="space-y-3 mb-8">
-                {comparisons.map((c) => {
-                  const cfg = STATUS_CONFIG[c.status];
-                  const Icon = cfg.icon;
-                  return (
-                    <motion.div
-                      key={c.id}
-                      variants={fadeInUp}
-                      className={`p-5 rounded-2xl border ${cfg.bg} ${cfg.border}`}
-                      data-testid={`progress-card-${c.id}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-base mb-1">{c.shortLabel}</p>
-                          <p className="text-sm text-muted-foreground">
-                            <span className="font-medium text-foreground/70">{c.originalText}</span>
-                            <span className="mx-2 text-muted-foreground/50">→</span>
-                            <span className={`font-semibold ${c.status === "improved" || c.status === "maintained" ? "text-foreground" : "text-muted-foreground"}`}>
-                              {c.retakeText}
-                            </span>
-                            {cfg.suffix && (
-                              <span className={`ml-1.5 ${cfg.labelClass}`}>{cfg.suffix}</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.labelClass} border ${cfg.border}`}>
-                          <Icon className={`w-3.5 h-3.5 ${cfg.iconClass}`} />
-                          {cfg.label}
+                <div className="text-left">
+                  <p className="text-sm font-bold">Movement Screen Comparison</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {improved > 0 ? `${improved} improvement${improved > 1 ? "s" : ""}` : ""}
+                    {improved > 0 && maintained > 0 ? " · " : ""}
+                    {maintained > 0 ? `${maintained} maintained` : ""}
+                    {improved === 0 && maintained === 0 ? "Retake to see your progress" : ""}
+                  </p>
+                </div>
+                {showComparisons
+                  ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+              </button>
+
+              {showComparisons && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-3 space-y-3"
+                >
+                  {comparisons.map((c) => {
+                    const cfg = STATUS_CONFIG[c.status];
+                    const Icon = cfg.icon;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`p-5 rounded-2xl border ${cfg.bg} ${cfg.border}`}
+                        data-testid={`progress-card-${c.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-bold text-base mb-1">{c.shortLabel}</p>
+                            <p className="text-sm text-muted-foreground">
+                              <span className="font-medium text-foreground/70">{c.originalText}</span>
+                              <span className="mx-2 text-muted-foreground/50">→</span>
+                              <span className={`font-semibold ${c.status === "improved" || c.status === "maintained" ? "text-foreground" : "text-muted-foreground"}`}>
+                                {c.retakeText}
+                              </span>
+                              {cfg.suffix && <span className={`ml-1.5 ${cfg.labelClass}`}>{cfg.suffix}</span>}
+                            </p>
+                          </div>
+                          <div className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.labelClass} border ${cfg.border}`}>
+                            <Icon className={`w-3.5 h-3.5 ${cfg.iconClass}`} />
+                            {cfg.label}
+                          </div>
                         </div>
                       </div>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-
-              {/* CTAs */}
-              <motion.div variants={fadeInUp} className="pt-6 border-t border-border/30 flex flex-col sm:flex-row gap-3">
-                <Button
-                  onClick={() => setLocation("/retake")}
-                  variant="outline"
-                  className="flex items-center gap-2 border-border/50"
-                  data-testid="button-retake-again"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Retake Again
-                </Button>
-                <Button
-                  onClick={() => setLocation("/results")}
-                  variant="outline"
-                  className="flex items-center gap-2 border-border/50"
-                  data-testid="button-back-results"
-                >
-                  Back to My Routine
-                </Button>
-              </motion.div>
-            </>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </motion.div>
           )}
+
+          {/* CTAs */}
+          <motion.div variants={fadeInUp} className="pt-4 border-t border-border/30 flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => setLocation("/retake")}
+              variant="outline"
+              className="flex items-center gap-2 border-border/50"
+              data-testid="button-retake-again"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Retake Movement Screen
+            </Button>
+            <Button
+              onClick={() => setLocation("/results")}
+              variant="outline"
+              className="flex items-center gap-2 border-border/50"
+              data-testid="button-back-results"
+            >
+              Back to My Routine
+            </Button>
+          </motion.div>
 
         </motion.div>
       </div>
