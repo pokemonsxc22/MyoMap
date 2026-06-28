@@ -314,9 +314,9 @@ export default function Dashboard() {
           <div className="px-5 pt-5 pb-3 border-b border-border/30">
             <div className="flex items-center gap-2 mb-0.5">
               <MessageCircle className="w-4 h-4 text-teal-500" />
-              <h2 className="font-semibold text-sm">Daily Check-In</h2>
+              <h2 className="font-semibold text-sm">Ask MyoMap AI</h2>
             </div>
-            <p className="text-xs text-muted-foreground">Tell us how you&apos;re feeling today — we&apos;ll update your routine.</p>
+            <p className="text-xs text-muted-foreground">How&apos;s your body feeling? Ask anything — we&apos;ll update your routine or answer any question.</p>
           </div>
 
           {/* Message thread */}

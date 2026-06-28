@@ -26,13 +26,12 @@ interface Exercise {
 interface ParsedRoutine {
   rootCause: string;
   exercises: Exercise[];
+  whatToAvoid: string[];
 }
 
 function extractName(raw: string): string {
-  // Strip leading **...** markdown bold for the name
   const match = raw.match(/^\*{1,2}([^*]+)\*{1,2}/);
   if (match) return match[1].trim();
-  // Fall back to text before first colon/dash
   const colonIdx = raw.indexOf(":");
   if (colonIdx > 0) return raw.slice(0, colonIdx).replace(/\*+/g, "").trim();
   return raw.slice(0, 40).replace(/\*+/g, "").trim();
@@ -40,22 +39,51 @@ function extractName(raw: string): string {
 
 function parseRoutine(text: string): ParsedRoutine {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  const rootCauseLines: string[] = [];
-  const exercises: Exercise[] = [];
+
+  type Section = "preamble" | "todo" | "avoid" | "why";
+  let section: Section = "preamble";
   let foundList = false;
 
+  const exercises: Exercise[] = [];
+  const avoidItems: string[] = [];
+  const whyLines: string[] = [];
+  const preambleLines: string[] = [];
+
   for (const line of lines) {
-    const match = line.match(/^(\d+)[.)]\s+(.+)$/);
-    if (match) {
-      foundList = true;
-      const raw = match[2];
-      exercises.push({ number: match[1], name: extractName(raw), raw });
-    } else if (!foundList) {
-      rootCauseLines.push(line);
+    const heading = line.replace(/^#+\s*/, "").toLowerCase();
+    if (/^(section\s*1[:\s]*)?(what to do|your routine|exercise routine)/.test(heading)) {
+      section = "todo"; continue;
+    }
+    if (/^(section\s*2[:\s]*)?(what to avoid|things to avoid|avoid)/.test(heading)) {
+      section = "avoid"; continue;
+    }
+    if (/^(section\s*3[:\s]*)?(why this works|why it works|explanation|root cause)/.test(heading)) {
+      section = "why"; continue;
+    }
+
+    const numbered = line.match(/^(\d+)[.)]\s+(.+)$/);
+    const bulleted = line.match(/^[-*•]\s+(.+)$/);
+
+    if (section === "preamble" || section === "todo") {
+      if (numbered) {
+        foundList = true;
+        exercises.push({ number: numbered[1], name: extractName(numbered[2]), raw: numbered[2] });
+      } else if (!foundList) {
+        preambleLines.push(line);
+      }
+    } else if (section === "avoid") {
+      const item = bulleted ? bulleted[1] : line;
+      if (!line.startsWith("#") && item.trim()) avoidItems.push(item.trim());
+    } else if (section === "why") {
+      if (!line.startsWith("#")) whyLines.push(line);
     }
   }
 
-  return { rootCause: rootCauseLines.join("\n\n"), exercises };
+  const rootCause = whyLines.length > 0
+    ? whyLines.join("\n\n")
+    : preambleLines.join("\n\n");
+
+  return { rootCause, exercises, whatToAvoid: avoidItems };
 }
 
 interface ExerciseUpdate {
@@ -97,6 +125,7 @@ const PLACEHOLDER: ParsedRoutine = {
   rootCause:
     "Based on your answers, we'll explain the biomechanical root cause of your pain or tightness here in plain English — no jargon.",
   exercises: PLACEHOLDER_EXERCISES,
+  whatToAvoid: [],
 };
 
 // ── Time slot config ──────────────────────────────────────────────
@@ -304,7 +333,7 @@ export default function Results() {
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <button
               onClick={() => setLocation("/dashboard")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-[0_0_14px_-4px_rgba(13,148,136,0.5)]"
               data-testid="button-nav-dashboard"
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -333,6 +362,106 @@ export default function Results() {
             </span>
             <h1 className="text-3xl font-black leading-tight">Your Mobility Assessment</h1>
           </motion.div>
+
+          {/* ── AI Chat (top) ── */}
+          {!isPlaceholder && (
+            <motion.div variants={fadeUp} className="mb-8">
+              <div className="rounded-2xl bg-card border border-teal-500/25 overflow-hidden">
+                <div className="px-5 pt-4 pb-3 border-b border-border/30 flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center flex-shrink-0">
+                    <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold leading-tight">Chat with MyoMap AI about your results</h2>
+                    <p className="text-xs text-muted-foreground">Ask anything about your exercises, pain, or routine</p>
+                  </div>
+                </div>
+
+                {/* Thread */}
+                {chatThread.length > 0 && (
+                  <div className="px-5 pt-4 space-y-5 max-h-80 overflow-y-auto">
+                    {chatThread.map((entry, i) => (
+                      <div key={i} className="space-y-2">
+                        <div className="flex justify-end">
+                          <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/25 text-sm text-foreground">
+                            {entry.question}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center mt-0.5">
+                            <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
+                          </div>
+                          <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tl-sm bg-teal-500/10 border border-teal-500/20 text-sm text-foreground leading-relaxed">
+                            <ReactMarkdown
+                              components={{
+                                p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                                strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                              }}
+                            >
+                              {entry.answer}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={chatBottomRef} />
+                  </div>
+                )}
+
+                {/* Typing indicator */}
+                {chatLoading && (
+                  <div className="px-5 pt-4 flex items-center gap-2">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center">
+                      <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
+                    </div>
+                    <div className="flex gap-1.5 items-center px-4 py-3 rounded-2xl rounded-tl-sm bg-teal-500/10 border border-teal-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500/60 animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500/60 animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500/60 animate-bounce [animation-delay:300ms]" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Error */}
+                {chatError && (
+                  <div className="px-5 pt-3">
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                      {chatError}
+                    </div>
+                  </div>
+                )}
+
+                {/* Input */}
+                <div className="px-4 pb-4 pt-3">
+                  <div className="flex gap-3 p-3.5 rounded-xl bg-background border border-border/50 focus-within:border-teal-500/40 transition-colors">
+                    <textarea
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void handleFollowup();
+                        }
+                      }}
+                      placeholder="Ask anything about your routine, pain, or exercises..."
+                      rows={2}
+                      className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
+                      data-testid="followup-input"
+                    />
+                    <button
+                      onClick={() => void handleFollowup()}
+                      disabled={!chatInput.trim() || chatLoading}
+                      className="self-end flex-shrink-0 w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_16px_-4px_rgba(13,148,136,0.5)]"
+                      data-testid="followup-submit"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground/40 mt-2 pl-1">Enter to send · Shift+Enter for new line</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* ── Streak Card ── */}
           {!isPlaceholder && (
@@ -527,99 +656,39 @@ export default function Results() {
             )}
           </motion.div>
 
-          {/* ── Follow-Up Chat ── */}
-          {!isPlaceholder && (
-            <motion.div variants={fadeUp} className="mt-10">
-              <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3 flex items-center gap-2">
-                <MessageCircle className="w-3.5 h-3.5" />
-                Ask a Follow-Up Question
+          {/* ── What to Avoid ── */}
+          {!isPlaceholder && parsed && parsed.whatToAvoid.length > 0 && (
+            <motion.div variants={fadeUp} className="mt-8">
+              <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3">
+                What to Avoid
               </h2>
-
-              {/* Thread */}
-              {chatThread.length > 0 && (
-                <div className="space-y-5 mb-4">
-                  {chatThread.map((entry, i) => (
-                    <div key={i} className="space-y-2">
-                      <div className="flex justify-end">
-                        <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tr-sm bg-primary/15 border border-primary/25 text-sm text-foreground">
-                          {entry.question}
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center mt-0.5">
-                          <MessageCircle className="w-3.5 h-3.5 text-primary" />
-                        </div>
-                        <div className="max-w-[82%] px-4 py-2.5 rounded-2xl rounded-tl-sm bg-card border border-border/50 text-sm text-muted-foreground leading-relaxed">
-                          <ReactMarkdown
-                            components={{
-                              p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-                              strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                            }}
-                          >
-                            {entry.answer}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    </div>
+              <div className="p-5 rounded-2xl bg-card border border-destructive/20">
+                <ul className="space-y-2.5">
+                  {parsed.whatToAvoid.map((item, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
+                      <span className="flex-shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-destructive/60" />
+                      {item}
+                    </li>
                   ))}
-                  <div ref={chatBottomRef} />
-                </div>
-              )}
-
-              {/* Typing indicator */}
-              {chatLoading && (
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-                    <MessageCircle className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <div className="flex gap-1.5 items-center px-4 py-3 rounded-2xl rounded-tl-sm bg-card border border-border/50">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
-                  </div>
-                </div>
-              )}
-
-              {/* Error */}
-              {chatError && (
-                <div className="p-3 mb-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
-                  {chatError}
-                </div>
-              )}
-
-              {/* Input */}
-              <div className="flex gap-3 p-4 rounded-2xl bg-card border border-border/50 focus-within:border-primary/40 transition-colors">
-                <textarea
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void handleFollowup();
-                    }
-                  }}
-                  placeholder="Ask anything about your routine, pain, or exercises..."
-                  rows={2}
-                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed"
-                  data-testid="followup-input"
-                />
-                <button
-                  onClick={() => void handleFollowup()}
-                  disabled={!chatInput.trim() || chatLoading}
-                  className="self-end flex-shrink-0 w-9 h-9 rounded-xl bg-primary hover:bg-primary/90 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_-5px_rgba(37,99,235,0.5)]"
-                  data-testid="followup-submit"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
+                </ul>
               </div>
-              <p className="text-xs text-muted-foreground/40 mt-2 pl-1">
-                Enter to send · Shift+Enter for a new line
-              </p>
             </motion.div>
           )}
 
-          {/* Bottom CTA */}
-          <motion.div variants={fadeUp} className="mt-10 pt-6 border-t border-border/30 flex flex-col sm:flex-row gap-3 flex-wrap">
+          {/* ── Go to Dashboard CTA ── */}
+          <motion.div variants={fadeUp} className="mt-10">
+            <Button
+              onClick={() => setLocation("/dashboard")}
+              className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white border-0 h-12 text-base font-semibold shadow-[0_0_24px_-6px_rgba(13,148,136,0.6)]"
+              data-testid="button-go-to-dashboard"
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              Go to Dashboard
+            </Button>
+          </motion.div>
+
+          {/* Bottom CTA (secondary actions) */}
+          <motion.div variants={fadeUp} className="mt-3 pt-4 border-t border-border/30 flex flex-col sm:flex-row gap-3 flex-wrap">
             <Button
               onClick={() => {
                 sessionStorage.removeItem("mobilityRoutine");
@@ -628,20 +697,12 @@ export default function Results() {
                 sessionStorage.removeItem("mobilityAssessmentId");
                 setLocation("/intake");
               }}
-              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white border-0"
+              variant="outline"
+              className="flex items-center gap-2 border-border/50"
               data-testid="button-new-assessment"
             >
               <RotateCcw className="w-4 h-4" />
               New Assessment
-            </Button>
-            <Button
-              onClick={() => setLocation("/dashboard")}
-              variant="outline"
-              className="flex items-center gap-2 border-border/50"
-              data-testid="button-back-to-dashboard"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Back to Dashboard
             </Button>
             {!isPlaceholder && (
               <>

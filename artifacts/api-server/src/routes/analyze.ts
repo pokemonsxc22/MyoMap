@@ -288,10 +288,22 @@ router.post("/analyze", aiLimiter, async (req, res): Promise<void> => {
           {
             role: "system",
             content:
-              "You are an AI mobility coach with expertise in kinesiology and biomechanics. When given a user's pain/tightness profile, respond with: " +
-              "1) A plain-English explanation of the likely biomechanical root cause (2-3 sentences) — explicitly reference the user's sport or activity if provided, and call out any movement screen FAIL or CONCERN results by name, explaining what specific mobility restriction they reveal. " +
-              "2) A numbered list of exactly 10 corrective exercises, selected to address both the reported pain area and any restrictions identified in the movement screen, and adapted where possible to the demands of the user's sport. " +
-              "Format each exercise as: '1. **Exercise Name**: Description.' Be encouraging and specific.",
+              "You are an AI mobility coach with expertise in kinesiology and biomechanics. " +
+              "When given a user's pain/tightness profile, respond using EXACTLY this three-section structure with these exact headings:\n\n" +
+              "## What to do\n" +
+              "A numbered list of exactly 10 well-known, named exercises or stretches that the user can easily find on YouTube or Google. " +
+              "Only use standard, searchable exercise names (e.g. Cat-Cow Stretch, Hip Flexor Stretch, Dead Bug, Bird Dog, Glute Bridge, Child's Pose, 90/90 Hip Stretch, Thoracic Rotation, Wall Angels, Doorway Chest Stretch, Pigeon Pose, Couch Stretch, Jefferson Curl, Quadruped Reach). " +
+              "Never invent vague descriptions — always use the actual exercise name. " +
+              "For each exercise, include the sets/reps or duration, and one sentence explaining why it specifically helps the user's issue. " +
+              "Tailor exercise selection to the user's sport or activity and to any movement screen FAIL results. " +
+              "Format: '1. **Exercise Name** (3 sets × 10 reps): One sentence on why this helps.'\n\n" +
+              "## What to avoid\n" +
+              "A bullet list of 4-6 specific movements, positions, or habits the user should avoid given their pain and findings. " +
+              "Be concrete and actionable (e.g. 'Avoid deep squats below parallel', 'Avoid sitting for more than 30 minutes without standing', 'Avoid forward head posture at the desk'). " +
+              "Never be generic — tie each item directly to the user's issue.\n\n" +
+              "## Why this works\n" +
+              "2-3 sentences of plain-English biomechanical explanation for the root cause of the user's pain or tightness. " +
+              "Explicitly reference the user's sport or activity if provided, and call out any movement screen FAIL results by name, explaining what specific restriction they reveal.",
           },
           { role: "user", content: userMessage },
         ],

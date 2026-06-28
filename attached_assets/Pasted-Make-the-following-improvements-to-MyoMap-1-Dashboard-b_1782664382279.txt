@@ -1,0 +1,24 @@
+Make the following improvements to MyoMap:
+
+## 1. Dashboard button
+- Add a clearly visible "Go to Dashboard" button on the results page after the assessment is complete
+- Style it as a teal (#0D9488) filled button, full width or prominent placement
+- Also add a dashboard button/link in the navbar so users can always get to their dashboard from anywhere in the app
+
+## 2. Exercises and stretches — use well-known named movements only
+- Update the AI prompt sent to Groq so that it ONLY recommends well-known, named exercises and stretches that a user can easily search on YouTube or Google
+- Examples of good exercise names: "Cat-Cow Stretch", "Hip Flexor Stretch", "Dead Bug", "Bird Dog", "Glute Bridge", "Child's Pose", "90/90 Hip Stretch", "Thoracic Rotation", "Wall Angels", "Doorway Chest Stretch"
+- Never invent vague or generic descriptions like "stretch your lower back" — always use the actual exercise name
+- For each exercise include: name, sets/reps or duration, and one sentence on why it helps their specific issue
+- Also include a "What to avoid" section listing specific movements or positions the user should stay away from given their pain/issue (e.g. "Avoid deep squats", "Avoid forward head posture", "Avoid sitting for more than 30 minutes at a time")
+- Structure the results clearly:
+  - Section 1: "What to do" — the exercise routine with named movements
+  - Section 2: "What to avoid" — specific things to stay away from
+  - Section 3: "Why this works" — brief biomechanical explanation
+
+## 3. AI chatbot visibility and placement
+- The AI chatbot is currently hidden — make it visible and prominent
+- On the dashboard/homepage: add a dedicated AI chat section with a clear heading like "Ask MyoMap AI" — give it its own card or panel, not collapsed or hidden
+- On the results page: move the AI chatbot to the TOP of the page, above the exercise routine, so users see it immediately after getting their results. Use a heading like "Chat with MyoMap AI about your results"
+- Style the chat input and send button with teal (#0D9488) accent
+- Make sure the chat is pre-loaded with context about the user's current assessment so the AI already knows what pain/issue they reported and can answer follow-up questions intelligently
