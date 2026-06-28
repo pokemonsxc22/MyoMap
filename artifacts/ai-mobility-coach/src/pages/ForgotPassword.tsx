@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabaseClient";
 
 const fadeUp = {
-  hidden:  { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" as const } },
+  hidden:  { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 };
+
+const inputClass =
+  "w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all text-sm hover:border-white/20";
 
 export default function ForgotPassword() {
   const [, setLocation] = useLocation();
@@ -30,53 +33,57 @@ export default function ForgotPassword() {
       return;
     }
 
-    // Build the redirect URL. In production the app sits at the root ("/"),
-    // but in Replit dev the Vite BASE_URL may be a subpath. Strip trailing
-    // slash so we never get double-slashes.
     const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
     const redirectTo = `${window.location.origin}${base}/reset-password`;
 
-    console.log("[MyoMap] ForgotPassword — window.location.origin:", window.location.origin);
-    console.log("[MyoMap] ForgotPassword — BASE_URL:", import.meta.env.BASE_URL);
-    console.log("[MyoMap] ForgotPassword — redirectTo sent to Supabase:", redirectTo);
+    console.log("[MyoMap] ForgotPassword — redirectTo:", redirectTo);
 
-    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(trimmed, {
-      redirectTo,
-    });
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo });
 
     setSending(false);
 
     if (resetErr) {
-      console.error("[MyoMap] ForgotPassword — resetPasswordForEmail error:", resetErr.message);
       setError(resetErr.message);
       return;
     }
 
-    console.log("[MyoMap] ForgotPassword — reset email sent successfully");
     setSent(true);
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
-      <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-500/15 blur-[150px] rounded-full pointer-events-none" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-[#0a0f1a] text-foreground flex items-center justify-center px-4 relative">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/12 blur-[160px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />
+      </div>
 
-      <motion.div initial="hidden" animate="visible" variants={fadeUp} className="relative z-10 w-full max-w-sm">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeUp}
+        className="relative z-10 w-full max-w-sm"
+      >
         <div className="mb-8 flex justify-center">
-          <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-20 w-auto" />
+          <img
+            src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
+            alt="MyoMap"
+            className="h-20 w-auto"
+          />
         </div>
 
-        <div className="p-8 rounded-2xl bg-card border border-border/50 shadow-[0_0_80px_-20px_rgba(13,148,136,0.15)]">
+        <div className="p-8 rounded-2xl bg-[#111827]/80 border border-teal-500/15 backdrop-blur-sm shadow-[0_0_80px_-20px_rgba(13,148,136,0.2)] hover:shadow-[0_0_100px_-16px_rgba(13,148,136,0.25)] transition-shadow">
           {sent ? (
             <div className="text-center space-y-3 py-4">
-              <CheckCircle2 className="w-10 h-10 text-teal-500 mx-auto" />
-              <h2 className="text-lg font-bold">Check your inbox</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <div className="w-12 h-12 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6 text-teal-500" />
+              </div>
+              <h2 className="text-lg font-extrabold">Check your inbox</h2>
+              <p className="text-sm text-slate-400 leading-relaxed">
                 We sent a reset link to <span className="text-foreground font-medium">{email}</span>.
               </p>
               <button
                 onClick={() => setLocation("/signin")}
-                className="mt-4 text-xs text-teal-500 hover:text-teal-400 transition-colors"
+                className="mt-3 text-xs text-teal-400 hover:text-teal-300 font-medium transition-colors"
               >
                 Back to sign in
               </button>
@@ -85,18 +92,18 @@ export default function ForgotPassword() {
             <>
               <button
                 onClick={() => setLocation("/signin")}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-6"
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors mb-6"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back to sign in
               </button>
 
-              <h1 className="text-2xl font-black mb-2">Reset your password</h1>
-              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              <h1 className="text-2xl font-extrabold mb-2">Reset your password</h1>
+              <p className="text-sm text-slate-400 mb-7 leading-relaxed">
                 Enter your email and we'll send you a link to reset your password.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 <input
                   type="email"
                   value={email}
@@ -104,13 +111,13 @@ export default function ForgotPassword() {
                   placeholder="Email address"
                   autoFocus
                   autoComplete="email"
-                  className="w-full h-11 px-4 rounded-xl bg-background border border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60 transition-colors text-sm"
+                  className={inputClass}
                 />
-                {error && <p className="text-xs text-destructive">{error}</p>}
+                {error && <p className="text-xs text-red-400 pt-0.5">{error}</p>}
                 <button
                   type="submit"
                   disabled={sending || !email.trim()}
-                  className="w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_-5px_rgba(13,148,136,0.4)]"
+                  className="w-full h-12 mt-1 rounded-xl bg-teal-600 hover:bg-teal-500 active:scale-[0.98] text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_24px_-6px_rgba(13,148,136,0.5)] hover:shadow-[0_0_30px_-4px_rgba(13,148,136,0.6)] hover:scale-[1.02]"
                 >
                   {sending ? "Sending…" : "Send reset link"}
                 </button>

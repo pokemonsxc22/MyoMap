@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -121,7 +121,7 @@
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  --app-font-sans: 'Plus Jakarta Sans', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
   
@@ -162,46 +162,46 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 230 25% 4%;
-  --foreground: 210 40% 98%;
-  --border: 215 20% 12%;
+  --background: 221 45% 7%;
+  --foreground: 210 40% 96%;
+  --border: 220 25% 14%;
   
-  --card: 230 25% 6%;
-  --card-foreground: 210 40% 98%;
-  --card-border: 215 20% 12%;
+  --card: 221 39% 11%;
+  --card-foreground: 210 40% 96%;
+  --card-border: 220 25% 14%;
   
-  --sidebar: 230 25% 6%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 215 20% 12%;
-  --sidebar-primary: 217 100% 50%;
+  --sidebar: 221 39% 11%;
+  --sidebar-foreground: 210 40% 96%;
+  --sidebar-border: 220 25% 14%;
+  --sidebar-primary: 175 84% 32%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 215 20% 12%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 217 100% 50%;
+  --sidebar-accent: 220 25% 14%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --sidebar-ring: 175 84% 32%;
 
-  --popover: 230 25% 6%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 215 20% 12%;
+  --popover: 221 39% 11%;
+  --popover-foreground: 210 40% 96%;
+  --popover-border: 220 25% 14%;
 
-  --primary: 217 100% 50%;
+  --primary: 175 84% 32%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 220 20% 15%;
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 96%;
 
-  --muted: 220 20% 10%;
-  --muted-foreground: 215 20% 65%;
+  --muted: 221 39% 9%;
+  --muted-foreground: 215 20% 55%;
 
-  --accent: 217 100% 50%;
+  --accent: 175 84% 32%;
   --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 215 20% 15%;
-  --ring: 217 100% 50%;
+  --input: 220 25% 14%;
+  --ring: 175 84% 32%;
 
-  --chart-1: 217 100% 50%;
+  --chart-1: 175 84% 40%;
   --chart-2: 173 58% 39%;
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
@@ -227,7 +227,7 @@
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', var(--app-font-sans);
+    font-family: 'Plus Jakarta Sans', var(--app-font-sans);
   }
 }
 

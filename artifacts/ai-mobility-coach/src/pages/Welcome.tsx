@@ -10,9 +10,12 @@ const PENDING_EMAIL_KEY = "myomap_pending_email";
 const PENDING_PW_KEY    = "myomap_pending_pw";
 
 const fadeUp = {
-  hidden:  { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" as const } },
+  hidden:  { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 };
+
+const inputClass =
+  "w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all text-sm hover:border-white/20";
 
 export default function Welcome() {
   const [, setLocation] = useLocation();
@@ -69,8 +72,6 @@ export default function Welcome() {
 
     const authUser = data.user;
 
-    // Supabase returns a fake user with empty identities when the email is
-    // already registered and email confirmations are enabled (silent duplicate).
     if (authUser && (authUser.identities?.length ?? 0) === 0) {
       setEmailConflict(true);
       setError("An account with this email already exists.");
@@ -94,11 +95,8 @@ export default function Welcome() {
     localStorage.setItem(USER_NAME_KEY, trimName);
 
     if (data.session) {
-      // Email confirmations are disabled — session is live immediately.
       setLocation("/intake");
     } else {
-      // Confirmation email sent. Stash credentials so AuthRedirectHandler can
-      // auto-sign-in when the user returns after clicking the confirmation link.
       sessionStorage.setItem(PENDING_EMAIL_KEY, trimEmail);
       sessionStorage.setItem(PENDING_PW_KEY, password);
       setConfirmMsg(
@@ -111,32 +109,44 @@ export default function Welcome() {
   if (loading || userId) return null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
-      <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-500/15 blur-[150px] rounded-full pointer-events-none" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-[#0a0f1a] text-foreground flex items-center justify-center px-4 relative">
+      {/* Animated bg */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/12 blur-[160px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />
+      </div>
 
-      <motion.div initial="hidden" animate="visible" variants={fadeUp} className="relative z-10 w-full max-w-sm">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeUp}
+        className="relative z-10 w-full max-w-sm"
+      >
         <div className="mb-8 flex justify-center">
-          <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-20 w-auto" />
+          <img
+            src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
+            alt="MyoMap"
+            className="h-20 w-auto"
+          />
         </div>
 
-        <div className="p-8 rounded-2xl bg-card border border-border/50 shadow-[0_0_80px_-20px_rgba(13,148,136,0.15)]">
+        <div className="p-8 rounded-2xl bg-[#111827]/80 border border-teal-500/15 backdrop-blur-sm shadow-[0_0_80px_-20px_rgba(13,148,136,0.2)] hover:shadow-[0_0_100px_-16px_rgba(13,148,136,0.25)] transition-shadow">
           {confirmMsg ? (
             <div className="text-center space-y-3 py-4">
-              <div className="w-12 h-12 rounded-full bg-teal-500/15 flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center mx-auto">
                 <Activity className="w-6 h-6 text-teal-500" />
               </div>
               <h2 className="text-lg font-bold">Check your inbox</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">{confirmMsg}</p>
+              <p className="text-sm text-slate-400 leading-relaxed">{confirmMsg}</p>
             </div>
           ) : (
             <>
-              <h1 className="text-2xl font-black mb-2">Create your account</h1>
-              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              <h1 className="text-2xl font-extrabold mb-2">Create your account</h1>
+              <p className="text-sm text-slate-400 mb-7 leading-relaxed">
                 Sign up to track your progress and access your routines.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 <input
                   type="text"
                   value={name}
@@ -144,7 +154,8 @@ export default function Welcome() {
                   placeholder="First name"
                   autoFocus
                   autoComplete="given-name"
-                  className="w-full h-11 px-4 rounded-xl bg-background border border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60 transition-colors text-sm"
+                  className={inputClass}
+                  data-testid="input-name"
                 />
                 <input
                   type="email"
@@ -152,7 +163,8 @@ export default function Welcome() {
                   onChange={(e) => { setEmail(e.target.value); setError(null); setEmailConflict(false); }}
                   placeholder="Email address"
                   autoComplete="email"
-                  className="w-full h-11 px-4 rounded-xl bg-background border border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60 transition-colors text-sm"
+                  className={inputClass}
+                  data-testid="input-email"
                 />
                 <div className="relative">
                   <input
@@ -161,12 +173,13 @@ export default function Welcome() {
                     onChange={(e) => { setPassword(e.target.value); setError(null); }}
                     placeholder="Password (min 6 characters)"
                     autoComplete="new-password"
-                    className="w-full h-11 px-4 pr-11 rounded-xl bg-background border border-border/60 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60 transition-colors text-sm"
+                    className={`${inputClass} pr-11`}
+                    data-testid="input-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                     tabIndex={-1}
                   >
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -174,13 +187,13 @@ export default function Welcome() {
                 </div>
 
                 {error && (
-                  <p className="text-xs text-destructive leading-relaxed">
+                  <p className="text-xs text-red-400 leading-relaxed pt-0.5">
                     {error}{" "}
                     {emailConflict && (
                       <button
                         type="button"
                         onClick={() => setLocation("/signin")}
-                        className="underline font-medium hover:text-destructive/80 transition-colors"
+                        className="underline font-medium hover:text-red-300 transition-colors"
                       >
                         Sign in instead
                       </button>
@@ -191,17 +204,18 @@ export default function Welcome() {
                 <button
                   type="submit"
                   disabled={submitting || !name.trim() || !email.trim() || password.length < 6}
-                  className="w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_-5px_rgba(13,148,136,0.4)]"
+                  className="w-full h-12 mt-1 rounded-xl bg-teal-600 hover:bg-teal-500 active:scale-[0.98] text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_24px_-6px_rgba(13,148,136,0.5)] hover:shadow-[0_0_30px_-4px_rgba(13,148,136,0.6)] hover:scale-[1.02]"
+                  data-testid="button-signup"
                 >
                   {submitting ? "Creating account…" : "Get Started"}
                 </button>
               </form>
 
-              <p className="text-center text-xs text-muted-foreground/70 mt-5">
+              <p className="text-center text-xs text-slate-500 mt-6">
                 Already have an account?{" "}
                 <button
                   onClick={() => setLocation("/signin")}
-                  className="text-teal-500 hover:text-teal-400 font-medium transition-colors"
+                  className="text-teal-400 hover:text-teal-300 font-semibold transition-colors"
                 >
                   Sign in
                 </button>

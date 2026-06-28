@@ -293,21 +293,36 @@ export default function Dashboard() {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  const sectionVariants = {
+    hidden:  { opacity: 0, y: 20 },
+    visible: (i: number) => ({
+      opacity: 1, y: 0,
+      transition: { duration: 0.5, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+    }),
+  };
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Glows */}
-      <div className="fixed top-[-20%] left-[-10%] w-[500px] h-[500px] bg-teal-500/10 blur-[140px] rounded-full pointer-events-none z-0" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-primary/10 blur-[140px] rounded-full pointer-events-none z-0" />
+    <div className="min-h-screen bg-[#0a0f1a] text-foreground">
+      {/* Animated glows */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-600/10 blur-[160px] rounded-full" />
+        <div className="fixed bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-teal-500/8 blur-[140px] rounded-full" />
+      </div>
 
       {/* Nav */}
-      <nav className="sticky top-0 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl z-50">
+      <nav className="sticky top-0 w-full border-b border-teal-500/10 bg-[#0a0f1a]/80 backdrop-blur-xl z-50">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center shrink-0">
-            <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-9 w-auto" />
+            <img
+              src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
+              alt="MyoMap"
+              className="h-9 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => setLocation("/")}
+            />
           </div>
           <button
             onClick={() => { void signOut().then(() => setLocation("/")); }}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:border-border transition-colors text-xs font-medium"
+            className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 text-slate-400 hover:text-foreground hover:border-white/20 transition-all text-xs font-medium"
           >
             <LogOut className="w-3.5 h-3.5" />
             Sign out
@@ -315,28 +330,40 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-8 relative z-10 space-y-5">
 
         {/* ── Section A: Header ─────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <motion.div
+          custom={0} initial="hidden" animate="visible" variants={sectionVariants}
+          className="flex items-center justify-between gap-4 flex-wrap"
+        >
           <div>
-            <p className="text-xs font-semibold text-teal-500 tracking-widest uppercase mb-1">Dashboard</p>
-            <h1 className="text-2xl font-black">
-              Welcome back{userName ? `, ${userName}` : ""}
+            <h1 className="text-2xl font-extrabold">
+              Welcome back{userName ? `, ${userName}` : ""} 👋
             </h1>
+            <p className="text-sm text-slate-400 mt-0.5">Here&apos;s your mobility overview.</p>
           </div>
-          <Button
-            onClick={() => setLocation("/intake")}
-            className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white border-0 shadow-[0_0_20px_-5px_rgba(13,148,136,0.4)]"
-            data-testid="button-new-assessment"
+          <motion.div
+            animate={{ boxShadow: ["0 0 16px -4px rgba(13,148,136,0.4)", "0 0 28px -2px rgba(13,148,136,0.6)", "0 0 16px -4px rgba(13,148,136,0.4)"] }}
+            transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
+            className="rounded-xl"
           >
-            <PlusCircle className="w-4 h-4" />
-            Start New Assessment
-          </Button>
-        </div>
+            <Button
+              onClick={() => setLocation("/intake")}
+              className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white border-0 font-bold hover:scale-[1.03] transition-transform"
+              data-testid="button-new-assessment"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Start New Assessment
+            </Button>
+          </motion.div>
+        </motion.div>
 
         {/* ── Section B: Daily Check-In Chat ────────────────────── */}
-        <div className="rounded-2xl bg-card border border-border/50 overflow-hidden">
+        <motion.div
+          custom={1} initial="hidden" animate="visible" variants={sectionVariants}
+          className="rounded-2xl bg-[#111827]/80 border border-teal-500/15 overflow-hidden backdrop-blur-sm hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-shadow"
+        >
           <div className="px-5 pt-5 pb-3 border-b border-border/30">
             <div className="flex items-center gap-2 mb-0.5">
               <MessageCircle className="w-4 h-4 text-teal-500" />
@@ -420,16 +447,19 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── Section C: Weekly Streak ───────────────────────────── */}
-        <div className="rounded-2xl bg-card border border-border/50 p-5">
+        <motion.div
+          custom={2} initial="hidden" animate="visible" variants={sectionVariants}
+          className="rounded-2xl bg-[#111827]/80 border border-teal-500/15 p-5 backdrop-blur-sm hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-shadow"
+        >
           <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-4 h-4 text-teal-500" />
-            <h2 className="font-semibold text-sm">Your Streak</h2>
+            <Flame className="w-4 h-4 text-teal-400" />
+            <h2 className="font-bold text-sm">Your Streak</h2>
           </div>
 
-          <div className="flex items-center justify-between gap-1 mb-4">
+          <div className="flex items-center justify-between gap-1 mb-5">
             {weekDates.map((date, i) => {
               const isChecked = checkedDates.includes(date);
               const isToday   = date === today;
@@ -439,12 +469,12 @@ export default function Dashboard() {
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                       isChecked
-                        ? "bg-teal-600 text-white"
+                        ? "bg-teal-600 text-white shadow-[0_0_14px_-2px_rgba(13,148,136,0.65)]"
                         : isToday
-                        ? "bg-background border-2 border-teal-500 text-teal-500"
+                        ? "bg-transparent border-2 border-teal-500 text-teal-400"
                         : isFuture
-                        ? "bg-secondary/30 text-muted-foreground/30"
-                        : "bg-secondary/50 text-muted-foreground"
+                        ? "bg-white/3 text-slate-600"
+                        : "bg-white/5 text-slate-500"
                     }`}
                   >
                     {isChecked ? (
@@ -459,76 +489,84 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-muted-foreground">
-              🔥 <span className="text-foreground">{streak}</span> day streak
+            <p className="text-sm font-semibold text-slate-400">
+              🔥 <span className="text-foreground font-bold">{streak}</span> day streak
             </p>
             <button
               onClick={() => void handleCheckIn()}
               disabled={completedToday || checkingIn}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                 completedToday
-                  ? "bg-secondary/50 text-muted-foreground cursor-default"
-                  : "bg-teal-600 hover:bg-teal-700 text-white shadow-[0_0_16px_-4px_rgba(13,148,136,0.4)]"
+                  ? "bg-white/5 text-slate-500 cursor-default border border-white/10"
+                  : "bg-teal-600 hover:bg-teal-500 text-white shadow-[0_0_16px_-4px_rgba(13,148,136,0.5)] hover:scale-[1.02]"
               }`}
               data-testid="button-check-in"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              {completedToday ? "Checked In Today" : "Check In Today"}
+              {completedToday ? "Checked In Today ✓" : "Check In Today"}
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* ── Section D: My Routines ─────────────────────────────── */}
-        <div>
+        <motion.div
+          custom={3} initial="hidden" animate="visible" variants={sectionVariants}
+        >
           <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-4 h-4 text-teal-500" />
-            <h2 className="font-semibold text-sm">My Routines</h2>
+            <Activity className="w-4 h-4 text-teal-400" />
+            <h2 className="font-bold text-sm">My Routines</h2>
           </div>
 
           {loadingData ? (
             <div className="space-y-3">
               {[1, 2].map((i) => (
-                <div key={i} className="h-24 rounded-2xl bg-card border border-border/50 animate-pulse" />
+                <div key={i} className="h-24 rounded-2xl bg-[#111827]/60 border border-teal-500/10 animate-pulse" />
               ))}
             </div>
           ) : routineGroups.length === 0 ? (
-            <div className="py-12 text-center rounded-2xl bg-card border border-border/50">
-              <p className="text-sm text-muted-foreground mb-4">No assessments yet.</p>
+            <div className="py-12 text-center rounded-2xl bg-[#111827]/80 border border-teal-500/15 backdrop-blur-sm">
+              <p className="text-sm text-slate-400 mb-4">No assessments yet.</p>
               <Button
                 onClick={() => setLocation("/intake")}
-                className="bg-teal-600 hover:bg-teal-700 text-white border-0"
+                className="bg-teal-600 hover:bg-teal-500 text-white border-0 font-bold"
               >
                 Take your first assessment
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {routineGroups.map((group) => (
+            <div className="space-y-4">
+              {routineGroups.map((group, idx) => (
                 <motion.div
                   key={group.painLocation}
-                  animate={flashGroup === group.painLocation ? { borderColor: ["#0D9488", "#0D9488", "rgba(255,255,255,0.05)"] } : {}}
-                  transition={{ duration: 1.6, ease: "easeOut" }}
-                  className="rounded-2xl bg-card border border-border/50 overflow-hidden"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={
+                    flashGroup === group.painLocation
+                      ? { opacity: 1, y: 0, borderColor: ["#0D9488", "#0D9488", "rgba(13,148,136,0.15)"] }
+                      : { opacity: 1, y: 0 }
+                  }
+                  transition={{ duration: 0.5, delay: idx * 0.08, ease: "easeOut" }}
+                  whileHover={{ boxShadow: "0 0 24px -8px rgba(13,148,136,0.25)" }}
+                  className="rounded-2xl bg-[#111827]/80 border border-teal-500/15 overflow-hidden backdrop-blur-sm transition-shadow"
                   data-testid={`routine-card-${group.painLocation}`}
                 >
-                  <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-border/30">
+                  <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-teal-500/10">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <h3 className="font-bold text-sm">
                           {AREA_LABELS[group.painLocation] ?? group.painLocation}
                         </h3>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-400 border border-teal-500/20 uppercase tracking-wide">
                           Active
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-slate-500">
                         Last assessed{" "}
                         {formatDistanceToNow(new Date(group.lastDate), { addSuffix: true })}
                       </p>
                     </div>
                     <button
                       onClick={() => setLocation("/intake")}
-                      className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-teal-500 hover:text-teal-400 transition-colors whitespace-nowrap"
+                      className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-teal-400 hover:text-teal-300 transition-colors whitespace-nowrap"
                       data-testid={`button-reassess-${group.painLocation}`}
                     >
                       <RefreshCcw className="w-3 h-3" />
@@ -538,40 +576,40 @@ export default function Dashboard() {
 
                   <div className="px-5 py-4">
                     {group.exercises.length > 0 ? (
-                      <div className="space-y-2.5">
-                        {group.exercises.slice(0, 5).map((ex, idx) => {
+                      <div className="space-y-3">
+                        {group.exercises.slice(0, 5).map((ex, i) => {
                           const setsReps = [ex.sets, ex.reps].filter(Boolean).join(" × ");
                           const desc     = ex.instructions ?? ex.notes ?? "";
                           return (
-                            <div key={idx} className="flex gap-3 text-sm">
-                              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-[10px] font-bold text-teal-500 mt-0.5">
-                                {idx + 1}
+                            <div key={i} className="flex gap-3 text-sm">
+                              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-[10px] font-bold text-teal-400 mt-0.5">
+                                {i + 1}
                               </span>
                               <div className="min-w-0">
                                 <p className="font-semibold text-foreground leading-snug">{ex.name}</p>
-                                {setsReps && <p className="text-xs text-teal-500 font-medium mt-0.5">{setsReps}</p>}
-                                {desc && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{desc}</p>}
+                                {setsReps && <p className="text-xs text-teal-400 font-medium mt-0.5">{setsReps}</p>}
+                                {desc && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed line-clamp-2">{desc}</p>}
                               </div>
                             </div>
                           );
                         })}
                         {group.exercises.length > 5 && (
-                          <p className="text-xs text-muted-foreground/50 pl-8">
+                          <p className="text-xs text-slate-600 pl-8">
                             +{group.exercises.length - 5} more exercises
                           </p>
                         )}
                       </div>
                     ) : group.routineText ? (
-                      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4 whitespace-pre-wrap">
+                      <p className="text-sm text-slate-400 leading-relaxed line-clamp-4 whitespace-pre-wrap">
                         {group.routineText}
                       </p>
                     ) : (
-                      <p className="text-xs text-muted-foreground/50">No exercise data available.</p>
+                      <p className="text-xs text-slate-600">No exercise data available.</p>
                     )}
 
                     <button
                       onClick={() => setLocation(`/results?id=${group.id}`)}
-                      className="mt-3 text-xs font-semibold text-teal-500 hover:text-teal-400 transition-colors flex items-center gap-1"
+                      className="mt-4 text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors flex items-center gap-1"
                     >
                       View full routine
                       <span className="text-base leading-none">›</span>
@@ -581,7 +619,7 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
 
       </div>
     </div>

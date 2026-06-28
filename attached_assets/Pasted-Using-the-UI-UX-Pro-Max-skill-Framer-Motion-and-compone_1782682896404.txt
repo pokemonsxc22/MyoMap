@@ -1,0 +1,60 @@
+Using the UI UX Pro Max skill, Framer Motion, and components inspired by 21st.dev, completely upgrade the visual design of MyoMap. This is a full UI overhaul.
+
+## Setup
+- Install Framer Motion: npm install framer-motion
+- Install Lucide React if not already installed: npm install lucide-react
+- Use Google Font "Plus Jakarta Sans" — add to index.html:
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+- Apply globally: font-family: 'Plus Jakarta Sans', sans-serif
+
+## Brand colors
+- Primary teal: #0D9488
+- Dark slate: #1E293B
+- Background: #0a0f1a
+- Card background: #111827
+- Border: rgba(13, 148, 136, 0.15)
+- Remove ALL blue from the app — every accent must be teal
+
+## Landing page
+- Full screen hero section with slow animated mesh gradient background in teal and dark slate
+- Hero headline: "Stop guessing why your body hurts." — large, bold, white with "your body hurts." in teal
+- Subtext: "We use AI and advanced kinesiology to diagnose tightness and pain, building a personalized, science-backed corrective exercise routine specifically for your body."
+- Two CTA buttons: "Start Now" (teal filled) and "Sign In" (ghost/outline)
+- Framer Motion staggered fade-up animation on hero text and buttons on load
+- Features section with 3 glassmorphism cards that fade in on scroll:
+  - 🧠 "AI-Powered Assessment" — describe your pain, get a diagnosis
+  - 💪 "Corrective Exercise Routines" — science-backed exercises for your exact issue
+  - 📈 "Track Your Progress" — log sessions, chat with AI, build streaks
+- "How it works" section with 3 numbered steps with animated connecting line:
+  - 1. Describe your pain
+  - 2. Get your routine
+  - 3. Track your recovery
+- Testimonials or social proof section: "Join thousands mapping their movement"
+- Footer: © 2026 MyoMap. All rights reserved. | Terms of Service | Privacy Policy
+- Navbar: MyoMap logo on left, "Sign In" and "Start Now" buttons on right — sticky with blur backdrop
+
+## Dashboard
+- Replace "DASHBOARD" + "Welcome back" with: "Welcome back, [name] 👋" as one clean heading
+- All cards use glassmorphism style: semi-transparent dark background, teal border glow, 16px border radius
+- Framer Motion staggered fade-in on all dashboard sections loading
+- Streak days: completed = teal glow, incomplete = dark with subtle border
+- "Start New Assessment" button: teal with subtle pulse animation
+- AI chat section: premium card with teal header accent, smooth message animations
+- More breathing room and padding throughout
+
+## Auth screens (sign up, sign in, forgot password, reset password)
+- Animated background matching landing page
+- Card: glassmorphism style, centered, fade-in + slide-up on load with Framer Motion
+- Inputs: dark background, teal focus ring glow (box-shadow: 0 0 0 2px #0D9488)
+- Buttons: teal filled, smooth hover scale effect
+- More padding and spacing for a premium feel
+
+## Global polish
+- All buttons: smooth hover transition (scale 1.02, slight brightness increase)
+- All cards: teal glow on hover (box-shadow: 0 0 20px rgba(13, 148, 136, 0.15))
+- All inputs: teal focus glow
+- Navbar logo: slightly larger with hover effect
+- Smooth page transitions between routes using Framer Motion AnimatePresence
+- Border radius 16px on all cards consistently
+
+Keep all existing functionality fully intact — this is a visual upgrade only.
