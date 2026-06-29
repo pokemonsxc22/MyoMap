@@ -202,26 +202,33 @@ export default function Progress() {
   const maintained = comparisons.filter((c) => c.status === "maintained").length;
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative">
-      <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full pointer-events-none z-0" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none z-0" />
+    <div className="min-h-screen bg-[#0a0f1a] text-foreground relative">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/10 blur-[160px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />
+      </div>
 
       {/* Nav */}
-      <nav className="sticky top-0 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl z-50">
+      <nav className="sticky top-0 w-full border-b border-teal-500/10 bg-[#0a0f1a]/85 backdrop-blur-xl z-50">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center">
-            <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-9 w-auto" />
+            <img
+              src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
+              alt="MyoMap"
+              className="h-9 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => setLocation("/")}
+            />
           </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setLocation("/dashboard")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white transition-all shadow-[0_0_14px_-4px_rgba(13,148,136,0.5)] hover:scale-[1.02]"
             >
               Dashboard
             </button>
             <button
               onClick={() => setLocation("/")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-slate-400 hover:text-foreground border border-white/10 hover:border-white/20 transition-all"
             >
               <Home className="w-3.5 h-3.5" />
               Home
@@ -245,13 +252,13 @@ export default function Progress() {
 
           {/* ── Session Feedback Card ── */}
           <motion.div variants={fadeInUp} className="mb-6">
-            <div className="rounded-2xl bg-card border border-teal-500/20 overflow-hidden">
-              <div className="px-5 pt-5 pb-4 border-b border-border/30">
+            <div className="rounded-2xl bg-[#111827]/80 border border-teal-500/20 overflow-hidden backdrop-blur-sm hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-shadow">
+              <div className="px-5 pt-5 pb-4 border-b border-white/5">
                 <div className="flex items-center gap-2 mb-0.5">
                   <Activity className="w-4 h-4 text-teal-500" />
                   <h2 className="text-sm font-bold">Log Today's Session</h2>
                 </div>
-                <p className="text-xs text-muted-foreground">Record how your exercises felt after completing your routine</p>
+                <p className="text-xs text-slate-500">Record how your exercises felt after completing your routine</p>
               </div>
 
               {feedbackSaved ? (
@@ -282,7 +289,7 @@ export default function Progress() {
                           className={`py-3 rounded-xl border font-semibold text-sm transition-all ${
                             difficulty === opt.value
                               ? `${opt.bg} ${opt.border} ${opt.color}`
-                              : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                              : "border-white/10 bg-white/3 text-slate-400 hover:border-white/20"
                           }`}
                           data-testid={`difficulty-${opt.value}`}
                         >
@@ -304,7 +311,7 @@ export default function Progress() {
                           className={`py-3 rounded-xl border font-semibold text-sm transition-all ${
                             improvement === opt.value
                               ? `${opt.bg} ${opt.border} ${opt.color}`
-                              : "border-border/50 bg-background text-muted-foreground hover:border-border"
+                              : "border-white/10 bg-white/3 text-slate-400 hover:border-white/20"
                           }`}
                           data-testid={`improvement-${opt.value}`}
                         >
@@ -322,7 +329,7 @@ export default function Progress() {
                       onChange={(e) => setNotes(e.target.value.slice(0, 300))}
                       placeholder="e.g. My lower back felt looser after the cat-cow stretch..."
                       rows={3}
-                      className="w-full bg-background border border-border/60 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/40 resize-none outline-none focus:border-teal-500/40 transition-colors leading-relaxed"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-slate-600 resize-none outline-none focus:border-teal-500/50 focus:ring-2 focus:ring-teal-500/30 transition-all leading-relaxed"
                       data-testid="notes-input"
                     />
                     <p className="text-xs text-muted-foreground/50 text-right mt-1">{notes.length}/300</p>
@@ -337,7 +344,7 @@ export default function Progress() {
                   <Button
                     onClick={() => void handleSaveFeedback()}
                     disabled={savingFeedback || !difficulty || !improvement || !userId}
-                    className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white border-0 font-semibold shadow-[0_0_20px_-6px_rgba(13,148,136,0.5)] disabled:opacity-40"
+                    className="w-full h-11 bg-teal-600 hover:bg-teal-500 text-white border-0 font-bold shadow-[0_0_20px_-6px_rgba(13,148,136,0.5)] hover:scale-[1.01] transition-all disabled:opacity-40"
                     data-testid="button-save-feedback"
                   >
                     {savingFeedback ? "Saving..." : "Save Progress"}
@@ -349,8 +356,8 @@ export default function Progress() {
 
           {/* ── Progress Chat ── */}
           <motion.div variants={fadeInUp} className="mb-6">
-            <div className="rounded-2xl bg-card border border-teal-500/20 overflow-hidden">
-              <div className="px-5 pt-5 pb-4 border-b border-border/30 flex items-center gap-2">
+            <div className="rounded-2xl bg-[#111827]/80 border border-teal-500/20 overflow-hidden backdrop-blur-sm hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-shadow">
+              <div className="px-5 pt-5 pb-4 border-b border-white/5 flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center flex-shrink-0">
                   <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
                 </div>
@@ -431,7 +438,7 @@ export default function Progress() {
 
               {/* Input */}
               <div className="px-4 pb-4 pt-3">
-                <div className="flex gap-3 p-3.5 rounded-xl bg-background border border-border/50 focus-within:border-teal-500/40 transition-colors">
+                <div className="flex gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 focus-within:border-teal-500/40 focus-within:ring-1 focus-within:ring-teal-500/30 transition-all">
                   <textarea
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
@@ -468,12 +475,12 @@ export default function Progress() {
             </h2>
 
             {logsLoading ? (
-              <div className="p-6 rounded-2xl bg-card border border-border/50 text-center">
-                <p className="text-sm text-muted-foreground">Loading history...</p>
+              <div className="p-6 rounded-2xl bg-[#111827]/80 border border-teal-500/10 backdrop-blur-sm text-center">
+                <p className="text-sm text-slate-500">Loading history...</p>
               </div>
             ) : logs.length === 0 ? (
-              <div className="p-6 rounded-2xl bg-card border border-border/50 text-center">
-                <p className="text-sm text-muted-foreground">No sessions logged yet. Complete your first routine above to start tracking.</p>
+              <div className="p-6 rounded-2xl bg-[#111827]/80 border border-teal-500/10 backdrop-blur-sm text-center">
+                <p className="text-sm text-slate-500">No sessions logged yet. Complete your first routine above to start tracking.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -481,7 +488,7 @@ export default function Progress() {
                   const diffOpt = DIFFICULTY_OPTIONS.find((o) => o.value === log.difficulty);
                   const imprOpt = IMPROVEMENT_OPTIONS.find((o) => o.value === log.improvement);
                   return (
-                    <div key={log.id} className="p-4 rounded-2xl bg-card border border-border/50" data-testid={`log-${log.id}`}>
+                    <div key={log.id} className="p-4 rounded-2xl bg-[#111827]/80 border border-teal-500/10 backdrop-blur-sm hover:border-teal-500/20 transition-all" data-testid={`log-${log.id}`}>
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-xs font-medium text-muted-foreground">{formatDate(log.created_at)}</span>
                         <div className="flex items-center gap-2">
@@ -512,7 +519,7 @@ export default function Progress() {
             <motion.div variants={fadeInUp} className="mb-6">
               <button
                 onClick={() => setShowComparisons((v) => !v)}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-card border border-border/50 hover:border-border transition-colors"
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-[#111827]/80 border border-teal-500/15 backdrop-blur-sm hover:border-teal-500/25 hover:shadow-[0_0_16px_-6px_rgba(13,148,136,0.2)] transition-all"
                 data-testid="button-toggle-comparisons"
               >
                 <div className="text-left">
@@ -571,11 +578,11 @@ export default function Progress() {
           )}
 
           {/* CTAs */}
-          <motion.div variants={fadeInUp} className="pt-4 border-t border-border/30 flex flex-col sm:flex-row gap-3">
+          <motion.div variants={fadeInUp} className="pt-4 border-t border-white/5 flex flex-col sm:flex-row gap-2.5">
             <Button
               onClick={() => setLocation("/retake")}
               variant="outline"
-              className="flex items-center gap-2 border-border/50"
+              className="flex items-center gap-2 bg-transparent border-white/10 text-slate-400 hover:border-white/20 hover:text-foreground hover:bg-white/5 transition-all"
               data-testid="button-retake-again"
             >
               <RotateCcw className="w-4 h-4" />
@@ -584,7 +591,7 @@ export default function Progress() {
             <Button
               onClick={() => setLocation("/results")}
               variant="outline"
-              className="flex items-center gap-2 border-border/50"
+              className="flex items-center gap-2 bg-transparent border-white/10 text-slate-400 hover:border-white/20 hover:text-foreground hover:bg-white/5 transition-all"
               data-testid="button-back-results"
             >
               Back to My Routine

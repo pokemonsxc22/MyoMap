@@ -320,20 +320,27 @@ export default function Results() {
   if (!parsed) return null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full pointer-events-none z-0" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full pointer-events-none z-0" />
+    <div className="min-h-screen bg-[#0a0f1a] text-foreground">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="fixed top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/10 blur-[160px]" />
+        <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />
+      </div>
 
       {/* ── Top Nav ── */}
-      <nav className="sticky top-0 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl z-50">
+      <nav className="sticky top-0 w-full border-b border-teal-500/10 bg-[#0a0f1a]/85 backdrop-blur-xl z-50">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center shrink-0">
-            <img src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png" alt="MyoMap" className="h-9 w-auto" />
+            <img
+              src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
+              alt="MyoMap"
+              className="h-9 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => setLocation("/")}
+            />
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <button
               onClick={() => setLocation("/dashboard")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-[0_0_14px_-4px_rgba(13,148,136,0.5)]"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white transition-all shadow-[0_0_14px_-4px_rgba(13,148,136,0.5)] hover:scale-[1.02]"
               data-testid="button-nav-dashboard"
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -341,7 +348,7 @@ export default function Results() {
             </button>
             <button
               onClick={() => setLocation("/")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-slate-400 hover:text-foreground border border-white/10 hover:border-white/20 transition-all"
               data-testid="button-nav-home"
             >
               <Home className="w-3.5 h-3.5" />
@@ -366,7 +373,7 @@ export default function Results() {
           {/* ── AI Chat (top) ── */}
           {!isPlaceholder && (
             <motion.div variants={fadeUp} className="mb-8">
-              <div className="rounded-2xl bg-card border border-teal-500/25 overflow-hidden">
+              <div className="rounded-2xl bg-[#111827]/80 border border-teal-500/20 overflow-hidden backdrop-blur-sm hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-shadow">
                 <div className="px-5 pt-4 pb-3 border-b border-border/30 flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center flex-shrink-0">
                     <MessageCircle className="w-3.5 h-3.5 text-teal-500" />
@@ -433,7 +440,7 @@ export default function Results() {
 
                 {/* Input */}
                 <div className="px-4 pb-4 pt-3">
-                  <div className="flex gap-3 p-3.5 rounded-xl bg-background border border-border/50 focus-within:border-teal-500/40 transition-colors">
+                  <div className="flex gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 focus-within:border-teal-500/40 focus-within:ring-1 focus-within:ring-teal-500/30 transition-all">
                     <textarea
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
@@ -466,7 +473,7 @@ export default function Results() {
           {/* ── Streak Card ── */}
           {!isPlaceholder && (
             <motion.div variants={fadeUp} className="mb-8">
-              <div className="p-5 rounded-2xl bg-card border border-border/50 flex flex-col sm:flex-row sm:items-center gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className="p-5 rounded-2xl bg-[#111827]/80 border border-teal-500/15 backdrop-blur-sm flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-[0_0_20px_-8px_rgba(13,148,136,0.2)] transition-shadow">
                 {/* Streak info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-1">
@@ -501,7 +508,7 @@ export default function Results() {
                     <Button
                       onClick={() => void handleMarkComplete()}
                       disabled={markingComplete}
-                      className="bg-primary hover:bg-primary/90 text-white border-0 shadow-[0_0_20px_-5px_rgba(37,99,235,0.4)] whitespace-nowrap"
+                      className="bg-teal-600 hover:bg-teal-500 text-white border-0 shadow-[0_0_20px_-5px_rgba(13,148,136,0.5)] hover:scale-[1.02] transition-all whitespace-nowrap font-bold"
                       data-testid="button-mark-complete"
                     >
                       {markingComplete ? "Saving..." : "Mark Today Complete"}
@@ -519,10 +526,10 @@ export default function Results() {
 
           {/* What's Happening in Your Body */}
           <motion.div variants={fadeUp} className="mb-8">
-            <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3">
-              What's Happening in Your Body
+            <h2 className="text-xs font-bold text-teal-500 tracking-widest uppercase mb-3">
+              What&apos;s Happening in Your Body
             </h2>
-            <div className="p-5 rounded-2xl bg-card border border-primary/20">
+            <div className="p-5 rounded-2xl bg-[#111827]/80 border border-teal-500/20 backdrop-blur-sm hover:shadow-[0_0_20px_-8px_rgba(13,148,136,0.2)] transition-shadow">
               <div className={`text-sm leading-relaxed ${isPlaceholder ? "text-muted-foreground/50 italic" : "text-muted-foreground"}`}>
                 <ReactMarkdown
                   components={{
@@ -538,7 +545,7 @@ export default function Results() {
 
           {/* Your Daily Schedule */}
           <motion.div variants={fadeUp} className="mb-8">
-            <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3">
+            <h2 className="text-xs font-bold text-teal-500 tracking-widest uppercase mb-3">
               Your Daily Schedule
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -576,7 +583,7 @@ export default function Results() {
 
           {/* Full Exercise Routine */}
           <motion.div variants={fadeUp}>
-            <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3">
+            <h2 className="text-xs font-bold text-teal-500 tracking-widest uppercase mb-3">
               Your Full Routine
             </h2>
             {overrideExercises !== null ? (
@@ -587,25 +594,25 @@ export default function Results() {
                 transition={{ duration: 0.4 }}
                 className="space-y-3"
               >
-                <p className="text-xs text-primary/60 font-medium mb-3 flex items-center gap-1.5">
+                <p className="text-xs text-teal-500/70 font-medium mb-3 flex items-center gap-1.5">
                   <RefreshCcw className="w-3 h-3" />
                   Updated by AI based on your conversation
                 </p>
                 {overrideExercises.map((ex, idx) => (
                   <div
                     key={idx}
-                    className="flex gap-4 p-4 rounded-2xl bg-card border border-primary/20 hover:border-primary/30 transition-colors"
+                    className="flex gap-4 p-4 rounded-2xl bg-[#111827]/80 border border-teal-500/20 backdrop-blur-sm hover:shadow-[0_0_16px_-6px_rgba(13,148,136,0.2)] transition-shadow"
                     data-testid={`exercise-override-${idx + 1}`}
                   >
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-black text-sm text-primary">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-teal-500/10 border border-teal-500/20 flex items-center justify-center font-extrabold text-sm text-teal-400">
                       {idx + 1}
                     </div>
                     <div className="min-w-0 text-sm leading-relaxed pt-0.5 flex-1">
                       <strong className="font-bold block mb-0.5 text-foreground">{ex.name}</strong>
                       {(ex.sets || ex.reps) && (
-                        <p className="text-xs text-primary font-medium mb-1">{[ex.sets, ex.reps].filter(Boolean).join(" · ")}</p>
+                        <p className="text-xs text-teal-400 font-medium mb-1">{[ex.sets, ex.reps].filter(Boolean).join(" · ")}</p>
                       )}
-                      <p className="text-muted-foreground">{ex.instructions}</p>
+                      <p className="text-slate-400">{ex.instructions}</p>
                     </div>
                   </div>
                 ))}
@@ -621,10 +628,11 @@ export default function Results() {
                     <motion.div
                       key={ex.number}
                       variants={fadeUp}
-                      className="flex gap-4 p-4 rounded-2xl bg-card border border-border/50 hover:border-border transition-colors"
+                      whileHover={{ boxShadow: "0 0 20px -8px rgba(13,148,136,0.2)" }}
+                      className="flex gap-4 p-4 rounded-2xl bg-[#111827]/80 border border-teal-500/10 hover:border-teal-500/20 backdrop-blur-sm transition-all"
                       data-testid={`exercise-${ex.number}`}
                     >
-                      <div className={`flex-shrink-0 w-9 h-9 rounded-full ${slot.bg} border ${slot.border} flex items-center justify-center font-black text-sm ${slot.accent}`}>
+                      <div className={`flex-shrink-0 w-9 h-9 rounded-full ${slot.bg} border ${slot.border} flex items-center justify-center font-extrabold text-sm ${slot.accent}`}>
                         {ex.number}
                       </div>
                       <div className="min-w-0 text-sm leading-relaxed pt-0.5">
@@ -641,11 +649,11 @@ export default function Results() {
                           {ex.raw}
                         </ReactMarkdown>
                         {isPlaceholder && (
-                          <span className="text-muted-foreground/30 italic text-xs">&nbsp;</span>
+                          <span className="text-slate-600 italic text-xs">&nbsp;</span>
                         )}
                       </div>
                       <div className="flex-shrink-0 self-start">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${slot.bg} ${slot.accent} border ${slot.border}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${slot.bg} ${slot.accent} border ${slot.border}`}>
                           {slot.label}
                         </span>
                       </div>
@@ -659,10 +667,10 @@ export default function Results() {
           {/* ── What to Avoid ── */}
           {!isPlaceholder && parsed && parsed.whatToAvoid.length > 0 && (
             <motion.div variants={fadeUp} className="mt-8">
-              <h2 className="text-xs font-semibold text-primary tracking-widest uppercase mb-3">
+              <h2 className="text-xs font-bold text-teal-500 tracking-widest uppercase mb-3">
                 What to Avoid
               </h2>
-              <div className="p-5 rounded-2xl bg-card border border-destructive/20">
+              <div className="p-5 rounded-2xl bg-[#111827]/80 border border-red-500/20 backdrop-blur-sm">
                 <ul className="space-y-2.5">
                   {parsed.whatToAvoid.map((item, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
@@ -688,7 +696,7 @@ export default function Results() {
           <motion.div variants={fadeUp} className="mt-10">
             <Button
               onClick={() => setLocation("/dashboard")}
-              className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white border-0 h-12 text-base font-semibold shadow-[0_0_24px_-6px_rgba(13,148,136,0.6)]"
+              className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 text-white border-0 h-13 text-base font-bold shadow-[0_0_28px_-6px_rgba(13,148,136,0.6)] hover:scale-[1.01] transition-all"
               data-testid="button-go-to-dashboard"
             >
               <LayoutDashboard className="w-5 h-5" />
@@ -697,7 +705,7 @@ export default function Results() {
           </motion.div>
 
           {/* Bottom CTA (secondary actions) */}
-          <motion.div variants={fadeUp} className="mt-3 pt-4 border-t border-border/30 flex flex-col sm:flex-row gap-3 flex-wrap">
+          <motion.div variants={fadeUp} className="mt-3 pt-4 border-t border-white/5 flex flex-col sm:flex-row gap-2.5 flex-wrap">
             <Button
               onClick={() => {
                 sessionStorage.removeItem("mobilityRoutine");
@@ -707,7 +715,7 @@ export default function Results() {
                 setLocation("/intake");
               }}
               variant="outline"
-              className="flex items-center gap-2 border-border/50"
+              className="flex items-center gap-2 bg-transparent border-white/10 text-slate-400 hover:border-white/20 hover:text-foreground hover:bg-white/5 transition-all"
               data-testid="button-new-assessment"
             >
               <RotateCcw className="w-4 h-4" />
@@ -718,7 +726,7 @@ export default function Results() {
                 <Button
                   onClick={() => setLocation("/retake")}
                   variant="outline"
-                  className="flex items-center gap-2 border-border/50"
+                  className="flex items-center gap-2 bg-transparent border-white/10 text-slate-400 hover:border-white/20 hover:text-foreground hover:bg-white/5 transition-all"
                   data-testid="button-retake-screen"
                 >
                   <RefreshCcw className="w-4 h-4" />
@@ -727,7 +735,7 @@ export default function Results() {
                 <Button
                   onClick={() => setLocation("/progress")}
                   variant="outline"
-                  className="flex items-center gap-2 border-border/50"
+                  className="flex items-center gap-2 bg-transparent border-white/10 text-slate-400 hover:border-white/20 hover:text-foreground hover:bg-white/5 transition-all"
                   data-testid="button-progress"
                 >
                   <TrendingUp className="w-4 h-4" />
