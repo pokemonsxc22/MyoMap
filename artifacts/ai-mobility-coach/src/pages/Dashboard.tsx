@@ -153,11 +153,29 @@ function getCalendarDays(month: Date): Array<{ dateStr: string | null; day: numb
 function InfoTooltip({ text }: { text: string }) {
   const [visible, setVisible] = useState(false);
   return (
-    <div className="relative inline-flex items-center">
+    <div className="relative inline-flex items-center" style={{ isolation: "isolate" }}>
       <button
         onMouseEnter={() => setVisible(true)}
         onMouseLeave={() => setVisible(false)}
-        className="w-4 h-4 rounded-full bg-white/8 text-slate-500 hover:text-slate-300 text-[9px] font-bold flex items-center justify-center transition-colors leading-none"
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          border: "1.5px solid white",
+          color: "white",
+          fontSize: 9,
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          lineHeight: 1,
+          background: "transparent",
+          cursor: "default",
+          padding: 0,
+          transition: "box-shadow 0.2s",
+          boxShadow: visible ? "0 0 6px #0D9488, 0 0 12px rgba(13,148,136,0.4)" : "none",
+          flexShrink: 0,
+        }}
         aria-label="More info"
       >
         i
@@ -169,9 +187,41 @@ function InfoTooltip({ text }: { text: string }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-6 w-52 p-2.5 rounded-xl bg-[#1e293b] border border-teal-500/20 text-xs text-slate-300 z-50 shadow-xl text-center pointer-events-none"
+            style={{
+              position: "absolute",
+              bottom: "calc(100% + 8px)",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 216,
+              padding: "8px 12px",
+              background: "#1E293B",
+              border: "1px solid #0D9488",
+              borderRadius: 8,
+              color: "white",
+              fontSize: 12,
+              lineHeight: 1.5,
+              zIndex: 9999,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(13,148,136,0.1)",
+              pointerEvents: "none",
+              textAlign: "center",
+              whiteSpace: "normal",
+            }}
           >
             {text}
+            {/* Arrow pointing down */}
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: 0,
+                height: 0,
+                borderLeft: "5px solid transparent",
+                borderRight: "5px solid transparent",
+                borderTop: "5px solid #0D9488",
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
