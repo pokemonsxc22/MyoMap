@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity, PlusCircle, Send, CheckCircle2,
   RefreshCcw, Flame, MessageCircle, LogOut,
+  ChevronLeft, ChevronRight, X, Calendar as CalendarIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { formatDistanceToNow } from "date-fns";
+import ReactMarkdown from "react-markdown";
 
 // ── Constants ─────────────────────────────────────────────────────
 const AREA_LABELS: Record<string, string> = {
@@ -42,6 +44,8 @@ const MUSCLE_GROUP_TO_SLUG: Record<string, string> = {
 };
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ── Types ─────────────────────────────────────────────────────────
 interface Exercise {
@@ -104,13 +108,104 @@ function parseExercisesFromRow(row: {
   return exercises;
 }
 
-function getWeekDateStrings(): string[] {
+function getWeekDateStrings(offset = 0): string[] {
   const now = new Date();
   const dow = now.getDay();
   const daysFromMonday = dow === 0 ? 6 : dow - 1;
-  const monday = new Date(now.getTime() - daysFromMonday * 86_400_000);
+  const monday = new Date(now.getTime() - (daysFromMonday + offset * 7) * 86_400_000);
   return Array.from({ length: 7 }, (_, i) =>
     new Date(monday.getTime() + i * 86_400_000).toISOString().slice(0, 10)
+  );
+}
+
+function formatDateRange(dates: string[]): string {
+  if (dates.length === 0) return "";
+  const start = new Date(dates[0] + "T12:00:00");
+  const end   = new Date(dates[dates.length - 1] + "T12:00:00");
+  return `${SHORT_MONTHS[start.getMonth()]} ${start.getDate()} – ${SHORT_MONTHS[end.getMonth()]} ${end.getDate()}`;
+}
+
+function getStreakConfig(streak: number) {
+  if (streak >= 10) return { color: "#0D9488", glow: "rgba(13,148,136,0.65)", emoji: "⚡", label: "Legendary" };
+  if (streak >= 7)  return { color: "#3B82F6", glow: "rgba(59,130,246,0.65)",  emoji: "💎", label: "Elite" };
+  if (streak >= 5)  return { color: "#8B5CF6", glow: "rgba(139,92,246,0.65)", emoji: "🚀", label: "On Fire" };
+  if (streak >= 3)  return { color: "#EF4444", glow: "rgba(239,68,68,0.65)",   emoji: "🔥", label: "Heating Up" };
+  return { color: "#0D9488", glow: "rgba(13,148,136,0.45)", emoji: "🔥", label: "" };
+}
+
+function getCalendarDays(month: Date): Array<{ dateStr: string | null; day: number }> {
+  const year = month.getFullYear();
+  const m    = month.getMonth();
+  const firstDay   = new Date(year, m, 1);
+  const lastDay    = new Date(year, m + 1, 0);
+  const startDow   = firstDay.getDay();
+  const offsetFromMon = startDow === 0 ? 6 : startDow - 1;
+  const days: Array<{ dateStr: string | null; day: number }> = [];
+  for (let i = 0; i < offsetFromMon; i++) days.push({ dateStr: null, day: 0 });
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = `${year}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    days.push({ dateStr, day: d });
+  }
+  return days;
+}
+
+// ── InfoTooltip ───────────────────────────────────────────────────
+function InfoTooltip({ text }: { text: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative inline-flex items-center">
+      <button
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        className="w-4 h-4 rounded-full bg-white/8 text-slate-500 hover:text-slate-300 text-[9px] font-bold flex items-center justify-center transition-colors leading-none"
+        aria-label="More info"
+      >
+        i
+      </button>
+      <AnimatePresence>
+        {visible && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-6 w-52 p-2.5 rounded-xl bg-[#1e293b] border border-teal-500/20 text-xs text-slate-300 z-50 shadow-xl text-center pointer-events-none"
+          >
+            {text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Streak Particle ───────────────────────────────────────────────
+function StreakParticles({ color, count = 6 }: { color: string; count?: number }) {
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      {Array.from({ length: count }, (_, i) => {
+        const angle = (i / count) * 360;
+        const radius = 28 + (i % 2) * 8;
+        const size   = 3 + (i % 3);
+        const delay  = i * 0.3;
+        const x = Math.cos((angle * Math.PI) / 180) * radius;
+        const y = Math.sin((angle * Math.PI) / 180) * radius;
+        return (
+          <motion.div
+            key={i}
+            style={{ backgroundColor: color, width: size, height: size, left: "50%", top: "50%", marginLeft: -size / 2, marginTop: -size / 2 }}
+            className="absolute rounded-full"
+            animate={{
+              x: [x * 0.7, x, x * 0.7],
+              y: [y * 0.7, y, y * 0.7],
+              opacity: [0.4, 0.9, 0.4],
+              scale: [0.8, 1.2, 0.8],
+            }}
+            transition={{ repeat: Infinity, duration: 2 + i * 0.3, delay, ease: "easeInOut" }}
+          />
+        );
+      })}
+    </div>
   );
 }
 
@@ -124,30 +219,41 @@ export default function Dashboard() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError]     = useState<string | null>(null);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Section C — Streak
-  const [weekDates]                         = useState<string[]>(getWeekDateStrings);
-  const [checkedDates, setCheckedDates]     = useState<string[]>([]);
-  const [streak, setStreak]                 = useState(0);
-  const [completedToday, setCompletedToday] = useState(false);
-  const [checkingIn, setCheckingIn]         = useState(false);
+  const [weekOffset, setWeekOffset]               = useState(0);
+  const [checkedDates, setCheckedDates]           = useState<string[]>([]);
+  const [streak, setStreak]                       = useState(0);
+  const [completedToday, setCompletedToday]       = useState(false);
+  const [checkingIn, setCheckingIn]               = useState(false);
+  const [calendarOpen, setCalendarOpen]           = useState(false);
+  const [calendarMonth, setCalendarMonth]         = useState(new Date());
 
   // Section D — Routines
   const [routineGroups, setRoutineGroups] = useState<RoutineGroup[]>([]);
   const [loadingData, setLoadingData]     = useState(true);
   const [flashGroup, setFlashGroup]       = useState<string | null>(null);
 
+  // Onboarding
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
   // Guard — redirect to welcome if no identity
   useEffect(() => {
     if (!userLoading && !userId) setLocation("/welcome");
   }, [userId, userLoading, setLocation]);
 
+  // Onboarding check
+  useEffect(() => {
+    if (localStorage.getItem("myomap_dashboard_seen")) return;
+    const t = setTimeout(() => setShowOnboarding(true), 800);
+    return () => clearTimeout(t);
+  }, []);
+
   // Load data once we have a userId
   useEffect(() => {
     if (!userId) return;
 
-    // Streak week
     void fetch(`/api/streaks/${encodeURIComponent(userId)}/week`)
       .then((r) => (r.ok ? r.json() : { dates: [], streak: 0, completedToday: false }))
       .then((data: { dates: string[]; streak: number; completedToday: boolean }) => {
@@ -157,35 +263,22 @@ export default function Dashboard() {
       })
       .catch(() => {});
 
-    // Assessments — async/await so errors are never swallowed silently
     if (!supabase) { setLoadingData(false); return; }
 
     void (async () => {
       try {
-        console.log("[MyoMap Dashboard] Fetching assessments for userId:", userId);
-
         const { data, error } = await supabase
           .from("assessments")
           .select("id, pain_location, created_at, exercises_json, routine_text")
           .eq("user_id", userId)
           .order("created_at", { ascending: false });
 
-        console.log("[MyoMap Dashboard] Supabase result:", { data, error });
-
-        if (error) {
-          console.error("[MyoMap Dashboard] Supabase error:", error.message, error.details, error.hint);
-          setLoadingData(false);
-          return;
-        }
-
-        if (!data || data.length === 0) {
-          console.log("[MyoMap Dashboard] No assessments found for this user.");
+        if (error || !data || data.length === 0) {
           setRoutineGroups([]);
           setLoadingData(false);
           return;
         }
 
-        // Build one card per unique pain location (most-recent assessment per area)
         const seen  = new Set<string>();
         const groups: RoutineGroup[] = [];
         for (const row of data) {
@@ -193,24 +286,35 @@ export default function Dashboard() {
           if (!seen.has(loc)) {
             seen.add(loc);
             groups.push({
-              id:          row.id as string,
+              id:           row.id as string,
               painLocation: loc,
-              lastDate:    row.created_at as string,
-              exercises:   parseExercisesFromRow(row),
-              routineText: (row.routine_text as string | null) ?? null,
+              lastDate:     row.created_at as string,
+              exercises:    parseExercisesFromRow(row),
+              routineText:  (row.routine_text as string | null) ?? null,
             });
           }
         }
-
-        console.log("[MyoMap Dashboard] Routine groups built:", groups.length, groups.map((g) => g.painLocation));
         setRoutineGroups(groups);
-      } catch (err) {
-        console.error("[MyoMap Dashboard] Unexpected error fetching assessments:", err);
+      } catch {
+        // silent
       } finally {
         setLoadingData(false);
       }
     })();
   }, [userId]);
+
+  // Derived
+  const weekDates   = getWeekDateStrings(weekOffset);
+  const streakCfg   = getStreakConfig(streak);
+  const calendarDays = getCalendarDays(calendarMonth);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // ── Scroll chat to bottom ──────────────────────────────────────
+  function scrollChatToBottom() {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }
 
   // ── Handlers ───────────────────────────────────────────────────
   const handleSendMessage = async () => {
@@ -222,6 +326,7 @@ export default function Dashboard() {
 
     const outgoing: ChatMessage[] = [...chatHistory, { role: "user", content: msg }];
     setChatHistory(outgoing);
+    setTimeout(scrollChatToBottom, 30);
 
     try {
       const res = await fetch("/api/daily-checkin", {
@@ -234,6 +339,7 @@ export default function Dashboard() {
 
       const { cleanText, update } = parseRoutineUpdate(data.reply);
       setChatHistory([...outgoing, { role: "assistant", content: cleanText }]);
+      setTimeout(scrollChatToBottom, 30);
 
       if (update) {
         const slug = MUSCLE_GROUP_TO_SLUG[update.muscle_group];
@@ -259,8 +365,6 @@ export default function Dashboard() {
           }
         }
       }
-
-      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -281,7 +385,6 @@ export default function Dashboard() {
       if (res.ok) {
         setCompletedToday(true);
         setStreak(data.streak ?? streak + 1);
-        const today = new Date().toISOString().slice(0, 10);
         setCheckedDates((prev) => [...new Set([...prev, today])]);
       }
     } catch { /* silent */ } finally {
@@ -289,9 +392,12 @@ export default function Dashboard() {
     }
   };
 
-  if (userLoading || !userId) return null;
+  const dismissOnboarding = () => {
+    localStorage.setItem("myomap_dashboard_seen", "true");
+    setShowOnboarding(false);
+  };
 
-  const today = new Date().toISOString().slice(0, 10);
+  if (userLoading || !userId) return null;
 
   const sectionVariants = {
     hidden:  { opacity: 0, y: 20 },
@@ -309,16 +415,171 @@ export default function Dashboard() {
         <div className="fixed bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-teal-500/8 blur-[140px] rounded-full" />
       </div>
 
+      {/* ── Onboarding Modal ───────────────────────────────────────── */}
+      <AnimatePresence>
+        {showOnboarding && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 10 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-md rounded-3xl bg-[#111827]/95 border border-teal-500/20 backdrop-blur-xl p-8 shadow-[0_0_60px_-12px_rgba(13,148,136,0.35)]"
+            >
+              <button
+                onClick={dismissOnboarding}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/8 hover:bg-white/15 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/25 flex items-center justify-center mb-5">
+                <Activity className="w-6 h-6 text-teal-400" />
+              </div>
+
+              <h2 className="text-xl font-extrabold mb-2">Here's how MyoMap works</h2>
+              <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+                Your AI-powered mobility coach — here's what you can do:
+              </p>
+
+              <div className="space-y-4 mb-7">
+                {[
+                  { icon: "1", text: "Start an assessment to get your personalized corrective routine" },
+                  { icon: "2", text: "Get your routine — exercises tailored to your exact body and pain" },
+                  { icon: "3", text: "Use the AI chat to ask questions or update your exercises anytime" },
+                  { icon: "4", text: "Track your progress — log sessions and build daily streaks" },
+                ].map((step) => (
+                  <div key={step.icon} className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center text-xs font-bold text-teal-400">
+                      {step.icon}
+                    </div>
+                    <p className="text-sm text-slate-300 leading-relaxed pt-0.5">{step.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={dismissOnboarding}
+                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white border-0 font-bold shadow-[0_0_20px_-6px_rgba(13,148,136,0.5)]"
+                >
+                  Let's Go!
+                </Button>
+                <button
+                  onClick={dismissOnboarding}
+                  className="px-4 py-2 rounded-xl border border-white/10 text-slate-400 hover:text-slate-300 text-sm transition-colors"
+                >
+                  Don't show again
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Calendar Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {calendarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setCalendarOpen(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-sm rounded-3xl bg-[#111827]/95 border border-teal-500/20 backdrop-blur-xl p-6 shadow-[0_0_60px_-12px_rgba(13,148,136,0.35)]"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <button
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                  className="w-8 h-8 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <h3 className="font-bold text-sm">
+                  {MONTH_NAMES[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                </h3>
+                <button
+                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                  className="w-8 h-8 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Day headers */}
+              <div className="grid grid-cols-7 mb-2">
+                {["M","T","W","T","F","S","S"].map((d, i) => (
+                  <div key={i} className="text-center text-[11px] font-bold text-slate-600 py-1">{d}</div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((cell, i) => {
+                  if (!cell.dateStr) return <div key={i} />;
+                  const isChecked = checkedDates.includes(cell.dateStr);
+                  const isToday   = cell.dateStr === today;
+                  return (
+                    <div
+                      key={i}
+                      className={`aspect-square flex items-center justify-center rounded-full text-xs font-semibold transition-all ${
+                        isChecked
+                          ? "text-white shadow-[0_0_12px_-2px_rgba(13,148,136,0.6)]"
+                          : isToday
+                          ? "border-2 border-teal-500 text-teal-400"
+                          : "text-slate-500 hover:text-slate-300"
+                      }`}
+                      style={isChecked ? { backgroundColor: streakCfg.color } : {}}
+                    >
+                      {cell.day}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-5 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: streakCfg.color }} />
+                  Check-in day
+                </div>
+                <button
+                  onClick={() => setCalendarOpen(false)}
+                  className="px-4 py-1.5 rounded-xl bg-white/6 hover:bg-white/12 text-xs font-semibold text-slate-400 hover:text-white transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Nav */}
       <nav className="sticky top-0 w-full border-b border-teal-500/10 bg-[#0a0f1a]/80 backdrop-blur-xl z-50">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center shrink-0">
+          <div
+            className="flex items-center gap-2.5 shrink-0 cursor-pointer"
+            onClick={() => setLocation("/")}
+          >
             <img
               src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
               alt="MyoMap"
-              className="h-9 w-auto cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setLocation("/")}
+              className="h-8 w-auto hover:opacity-90 transition-opacity"
             />
+            <span className="text-sm font-extrabold text-white tracking-tight">MyoMap</span>
           </div>
           <button
             onClick={() => { void signOut().then(() => setLocation("/")); }}
@@ -368,12 +629,13 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mb-0.5">
               <MessageCircle className="w-4 h-4 text-teal-500" />
               <h2 className="font-semibold text-sm">Ask MyoMap AI</h2>
+              <InfoTooltip text="Chat with our AI about your pain, routine, or recovery — it can update your exercises too." />
             </div>
             <p className="text-xs text-muted-foreground">How&apos;s your body feeling? Ask anything — we&apos;ll update your routine or answer any question.</p>
           </div>
 
           {/* Message thread */}
-          <div className="px-5 py-4 max-h-80 overflow-y-auto space-y-3">
+          <div ref={chatContainerRef} className="px-5 py-4 max-h-80 overflow-y-auto space-y-3">
             {chatHistory.length === 0 && (
               <p className="text-xs text-muted-foreground/50 text-center py-6">
                 Send a message to get started — describe any soreness, tightness, or how your workout went.
@@ -394,13 +656,27 @@ export default function Dashboard() {
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                    className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                       msg.role === "user"
                         ? "bg-secondary/60 border border-border/40 text-foreground rounded-tr-sm"
                         : "bg-teal-500/10 border border-teal-500/20 text-foreground rounded-tl-sm"
                     }`}
                   >
-                    {msg.content}
+                    {msg.role === "assistant" ? (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                          ul: ({ children }) => <ul className="list-disc list-inside space-y-0.5 my-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal list-inside space-y-0.5 my-1">{children}</ol>,
+                          li: ({ children }) => <li className="text-sm">{children}</li>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -420,7 +696,6 @@ export default function Dashboard() {
             )}
 
             {chatError && <p className="text-xs text-destructive px-1">{chatError}</p>}
-            <div ref={chatBottomRef} />
           </div>
 
           {/* Input */}
@@ -454,52 +729,132 @@ export default function Dashboard() {
           custom={2} initial="hidden" animate="visible" variants={sectionVariants}
           className="rounded-2xl bg-[#111827]/80 border border-teal-500/15 p-5 backdrop-blur-sm hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-shadow"
         >
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-4 h-4 text-teal-400" />
-            <h2 className="font-bold text-sm">Your Streak</h2>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Flame className="w-4 h-4" style={{ color: streakCfg.color }} />
+              <h2 className="font-bold text-sm">Your Streak</h2>
+              <InfoTooltip text="Check in daily to build your streak and stay consistent with your routine." />
+            </div>
+            <button
+              onClick={() => { setCalendarMonth(new Date()); setCalendarOpen(true); }}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-teal-400 transition-colors"
+            >
+              <CalendarIcon className="w-3.5 h-3.5" />
+              View Calendar
+            </button>
           </div>
 
-          <div className="flex items-center justify-between gap-1 mb-5">
-            {weekDates.map((date, i) => {
-              const isChecked = checkedDates.includes(date);
-              const isToday   = date === today;
-              const isFuture  = date > today;
-              return (
-                <div key={date} className="flex flex-col items-center gap-1.5">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                      isChecked
-                        ? "bg-teal-600 text-white shadow-[0_0_14px_-2px_rgba(13,148,136,0.65)]"
-                        : isToday
-                        ? "bg-transparent border-2 border-teal-500 text-teal-400"
-                        : isFuture
-                        ? "bg-white/3 text-slate-600"
-                        : "bg-white/5 text-slate-500"
-                    }`}
-                  >
-                    {isChecked ? (
-                      <CheckCircle2 className="w-4 h-4" />
-                    ) : (
-                      <span className="text-xs font-bold">{DAY_LABELS[i]}</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          {/* Week navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setWeekOffset(o => o + 1)}
+              className="w-7 h-7 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-500 hover:text-white transition-all"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-xs font-semibold text-slate-500">
+              {weekOffset === 0 ? "This week" : formatDateRange(weekDates)}
+            </span>
+            <button
+              onClick={() => setWeekOffset(o => Math.max(0, o - 1))}
+              disabled={weekOffset === 0}
+              className="w-7 h-7 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-500 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
+
+          {/* Week dots */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={weekOffset}
+              initial={{ opacity: 0, x: weekOffset > 0 ? -20 : 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center justify-between gap-1 mb-5"
+            >
+              {weekDates.map((date, i) => {
+                const isChecked = checkedDates.includes(date);
+                const isToday   = date === today;
+                const isFuture  = date > today;
+                return (
+                  <div key={date} className="flex flex-col items-center gap-1.5">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                        isChecked
+                          ? "text-white shadow-[0_0_14px_-2px_rgba(13,148,136,0.65)]"
+                          : isToday
+                          ? "bg-transparent border-2 text-teal-400"
+                          : isFuture
+                          ? "bg-white/3 text-slate-600"
+                          : "bg-white/5 text-slate-500"
+                      }`}
+                      style={
+                        isChecked
+                          ? { backgroundColor: streakCfg.color, boxShadow: `0 0 14px -2px ${streakCfg.glow}` }
+                          : isToday
+                          ? { borderColor: streakCfg.color, color: streakCfg.color }
+                          : {}
+                      }
+                    >
+                      {isChecked ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                      ) : (
+                        <span className="text-xs font-bold">{DAY_LABELS[i]}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
 
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-slate-400">
-              🔥 <span className="text-foreground font-bold">{streak}</span> day streak
-            </p>
+            {/* Streak count with particles */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                {streak >= 3 && (
+                  <StreakParticles color={streakCfg.color} />
+                )}
+                <motion.p
+                  className="text-sm font-semibold relative z-10"
+                  animate={{ textShadow: streak >= 3 ? `0 0 16px ${streakCfg.glow}` : "none" }}
+                >
+                  <span className="text-lg">{streakCfg.emoji}</span>{" "}
+                  <motion.span
+                    className="font-extrabold text-base"
+                    style={{ color: streak >= 3 ? streakCfg.color : undefined }}
+                    animate={streak >= 3 ? { scale: [1, 1.05, 1] } : {}}
+                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                  >
+                    {streak}
+                  </motion.span>
+                  <span className="text-slate-400 font-normal ml-1.5">day streak</span>
+                </motion.p>
+              </div>
+              {streak >= 3 && (
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                  style={{ color: streakCfg.color, borderColor: `${streakCfg.color}40`, backgroundColor: `${streakCfg.color}15` }}
+                >
+                  {streakCfg.label}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => void handleCheckIn()}
               disabled={completedToday || checkingIn}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                 completedToday
                   ? "bg-white/5 text-slate-500 cursor-default border border-white/10"
-                  : "bg-teal-600 hover:bg-teal-500 text-white shadow-[0_0_16px_-4px_rgba(13,148,136,0.5)] hover:scale-[1.02]"
+                  : "text-white hover:scale-[1.02]"
               }`}
+              style={!completedToday ? {
+                backgroundColor: streakCfg.color,
+                boxShadow: `0 0 16px -4px ${streakCfg.glow}`,
+              } : {}}
               data-testid="button-check-in"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -515,6 +870,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 mb-4">
             <Activity className="w-4 h-4 text-teal-400" />
             <h2 className="font-bold text-sm">My Routines</h2>
+            <InfoTooltip text="Your saved assessment routines — click View full routine to see all exercises." />
           </div>
 
           {loadingData ? (

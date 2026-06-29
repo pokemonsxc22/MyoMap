@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send, CheckCircle2, LayoutDashboard } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Activity, Home, RotateCcw, Sunset, Sun, Moon, TrendingUp, RefreshCcw, MessageCircle, Send, CheckCircle2, LayoutDashboard, ChevronDown, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
@@ -190,6 +190,11 @@ export default function Results() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
+  const [instructionCache, setInstructionCache] = useState<Record<string, string>>({});
+  const [instructionLoading, setInstructionLoading] = useState<string | null>(null);
+  const [showResultsOnboarding, setShowResultsOnboarding] = useState(false);
 
   // ── Streak tracking ────────────────────────────────────────────────────────
   const { userId: authUserId } = useUser();
@@ -249,7 +254,7 @@ export default function Results() {
       const { cleanText, exercises } = parseExerciseUpdate(data.answer);
       setChatMessages([...outgoing, { role: "assistant" as const, content: cleanText }]);
       setChatThread((prev) => [...prev, { question, answer: cleanText }]);
-      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      setTimeout(() => { if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }, 30);
       if (exercises !== null) {
         setOverrideExercises(exercises);
         if (assessmentId) {
@@ -317,6 +322,33 @@ export default function Results() {
       .catch(() => setStreakData({ streak: 0, totalCompletions: 0, completedToday: false }));
   }, [userId]);
 
+  useEffect(() => {
+    if (localStorage.getItem("myomap_results_seen")) return;
+    const t = setTimeout(() => setShowResultsOnboarding(true), 900);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleExerciseClick = async (exerciseNum: string, exerciseName: string) => {
+    if (isPlaceholder) return;
+    setExpandedExercise(prev => prev === exerciseNum ? null : exerciseNum);
+    if (!instructionCache[exerciseNum] && instructionLoading !== exerciseNum) {
+      setInstructionLoading(exerciseNum);
+      try {
+        const res = await fetch("/api/exercise-instructions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ exerciseName }),
+        });
+        const data = (await res.json()) as { instructions?: string };
+        if (data.instructions) {
+          setInstructionCache(prev => ({ ...prev, [exerciseNum]: data.instructions! }));
+        }
+      } catch { /* silent */ } finally {
+        setInstructionLoading(null);
+      }
+    }
+  };
+
   if (!parsed) return null;
 
   return (
@@ -327,15 +359,77 @@ export default function Results() {
       </div>
 
       {/* ── Top Nav ── */}
+      {/* ── Results Onboarding Modal ── */}
+      <AnimatePresence>
+        {showResultsOnboarding && !isPlaceholder && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-md rounded-3xl bg-[#111827]/95 border border-teal-500/20 backdrop-blur-xl p-8 shadow-[0_0_60px_-12px_rgba(13,148,136,0.35)]"
+            >
+              <button
+                onClick={() => { localStorage.setItem("myomap_results_seen", "true"); setShowResultsOnboarding(false); }}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/8 hover:bg-white/15 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/15 border border-teal-500/25 flex items-center justify-center mb-5">
+                <Activity className="w-6 h-6 text-teal-400" />
+              </div>
+              <h2 className="text-xl font-extrabold mb-2">Your personalized routine is ready</h2>
+              <p className="text-sm text-slate-400 mb-6 leading-relaxed">Here's how to make the most of your results:</p>
+              <div className="space-y-4 mb-7">
+                {[
+                  { icon: "→", text: "Click any exercise to see step-by-step how-to instructions" },
+                  { icon: "→", text: "Chat with the AI about your results, pain, or routine questions" },
+                  { icon: "→", text: "Save your routine to your dashboard to track long-term" },
+                  { icon: "→", text: "Check in daily and build your streak for best results" },
+                ].map((step) => (
+                  <div key={step.text} className="flex items-start gap-3">
+                    <span className="text-teal-400 font-bold text-sm mt-0.5">{step.icon}</span>
+                    <p className="text-sm text-slate-300 leading-relaxed">{step.text}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => { localStorage.setItem("myomap_results_seen", "true"); setShowResultsOnboarding(false); }}
+                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white border-0 font-bold shadow-[0_0_20px_-6px_rgba(13,148,136,0.5)]"
+                >
+                  Got it!
+                </Button>
+                <button
+                  onClick={() => { localStorage.setItem("myomap_results_seen", "true"); setShowResultsOnboarding(false); }}
+                  className="px-4 py-2 rounded-xl border border-white/10 text-slate-400 hover:text-slate-300 text-sm transition-colors"
+                >
+                  Don't show again
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <nav className="sticky top-0 w-full border-b border-teal-500/10 bg-[#0a0f1a]/85 backdrop-blur-xl z-50">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center shrink-0">
+          <div
+            className="flex items-center gap-2 shrink-0 cursor-pointer"
+            onClick={() => setLocation("/")}
+          >
             <img
               src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
               alt="MyoMap"
-              className="h-9 w-auto cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setLocation("/")}
+              className="h-8 w-auto hover:opacity-90 transition-opacity"
             />
+            <span className="text-sm font-extrabold text-white tracking-tight">MyoMap</span>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <button
@@ -386,7 +480,7 @@ export default function Results() {
 
                 {/* Thread */}
                 {chatThread.length > 0 && (
-                  <div className="px-5 pt-4 space-y-5 max-h-80 overflow-y-auto">
+                  <div ref={chatContainerRef} className="px-5 pt-4 space-y-5 max-h-80 overflow-y-auto">
                     {chatThread.map((entry, i) => (
                       <div key={i} className="space-y-2">
                         <div className="flex justify-end">
@@ -624,39 +718,93 @@ export default function Results() {
                     (s) => Number(ex.number) - 1 >= s.range[0] && Number(ex.number) - 1 <= s.range[1]
                   );
                   const slot = slotIndex >= 0 ? TIME_SLOTS[slotIndex] : TIME_SLOTS[0];
+                  const isExpanded = expandedExercise === ex.number;
+                  const isLoadingThis = instructionLoading === ex.number;
                   return (
                     <motion.div
                       key={ex.number}
                       variants={fadeUp}
-                      whileHover={{ boxShadow: "0 0 20px -8px rgba(13,148,136,0.2)" }}
-                      className="flex gap-4 p-4 rounded-2xl bg-[#111827]/80 border border-teal-500/10 hover:border-teal-500/20 backdrop-blur-sm transition-all"
+                      className="rounded-2xl bg-[#111827]/80 border border-teal-500/10 hover:border-teal-500/20 backdrop-blur-sm transition-all overflow-hidden"
                       data-testid={`exercise-${ex.number}`}
                     >
-                      <div className={`flex-shrink-0 w-9 h-9 rounded-full ${slot.bg} border ${slot.border} flex items-center justify-center font-extrabold text-sm ${slot.accent}`}>
-                        {ex.number}
+                      <div
+                        className={`flex gap-4 p-4 ${!isPlaceholder ? "cursor-pointer hover:bg-teal-500/3" : ""} transition-colors`}
+                        onClick={() => { if (!isPlaceholder) void handleExerciseClick(ex.number, ex.name); }}
+                      >
+                        <div className={`flex-shrink-0 w-9 h-9 rounded-full ${slot.bg} border ${slot.border} flex items-center justify-center font-extrabold text-sm ${slot.accent}`}>
+                          {ex.number}
+                        </div>
+                        <div className="min-w-0 text-sm leading-relaxed pt-0.5 flex-1">
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p>{children}</p>,
+                              strong: ({ children }) => (
+                                <strong className={`font-bold block mb-0.5 ${isPlaceholder ? "text-foreground/30" : "text-foreground"}`}>
+                                  {children}
+                                </strong>
+                              ),
+                            }}
+                          >
+                            {ex.raw}
+                          </ReactMarkdown>
+                          {isPlaceholder && (
+                            <span className="text-slate-600 italic text-xs">&nbsp;</span>
+                          )}
+                          {!isPlaceholder && !isExpanded && (
+                            <p className="text-xs text-teal-500/50 mt-1">Click to see how to do this</p>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0 self-start flex items-center gap-2 pt-0.5">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${slot.bg} ${slot.accent} border ${slot.border}`}>
+                            {slot.label}
+                          </span>
+                          {!isPlaceholder && (
+                            isLoadingThis
+                              ? <Loader2 className="w-3.5 h-3.5 text-teal-500 animate-spin" />
+                              : <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0 text-sm leading-relaxed pt-0.5">
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }) => <p>{children}</p>,
-                            strong: ({ children }) => (
-                              <strong className={`font-bold block mb-0.5 ${isPlaceholder ? "text-foreground/30" : "text-foreground"}`}>
-                                {children}
-                              </strong>
-                            ),
-                          }}
-                        >
-                          {ex.raw}
-                        </ReactMarkdown>
-                        {isPlaceholder && (
-                          <span className="text-slate-600 italic text-xs">&nbsp;</span>
+
+                      <AnimatePresence initial={false}>
+                        {isExpanded && !isPlaceholder && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-4 pb-4">
+                              <div className="p-4 rounded-xl bg-teal-500/6 border border-teal-500/20">
+                                <p className="text-[10px] font-bold text-teal-500 tracking-widest uppercase mb-3">Step-by-Step Instructions</p>
+                                {isLoadingThis ? (
+                                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                                    <Loader2 className="w-4 h-4 animate-spin text-teal-500" />
+                                    Generating step-by-step instructions...
+                                  </div>
+                                ) : instructionCache[ex.number] ? (
+                                  <div className="text-sm text-slate-300 leading-relaxed">
+                                    <ReactMarkdown
+                                      components={{
+                                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                        ol: ({ children }) => <ol className="space-y-2 list-decimal list-outside pl-4">{children}</ol>,
+                                        ul: ({ children }) => <ul className="space-y-1.5 list-disc list-outside pl-4">{children}</ul>,
+                                        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                                      }}
+                                    >
+                                      {instructionCache[ex.number]}
+                                    </ReactMarkdown>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-slate-500 italic">Loading instructions...</p>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
                         )}
-                      </div>
-                      <div className="flex-shrink-0 self-start">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${slot.bg} ${slot.accent} border ${slot.border}`}>
-                          {slot.label}
-                        </span>
-                      </div>
+                      </AnimatePresence>
                     </motion.div>
                   );
                 })}

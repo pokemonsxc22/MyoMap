@@ -305,3 +305,35 @@
 #replit-badge {
   display: none !important;
 }
+
+/* ── Dark select/dropdown styling ────────────────────────── */
+select {
+  background-color: #1E293B;
+  color: #f1f5f9;
+  border: 1px solid rgba(13, 148, 136, 0.3);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+}
+
+select:focus {
+  border-color: rgba(13, 148, 136, 0.6);
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+}
+
+select option {
+  background-color: #1E293B;
+  color: #f1f5f9;
+}
+
+select option:hover,
+select option:checked {
+  background-color: rgba(13, 148, 136, 0.25);
+  color: #5eead4;
+}

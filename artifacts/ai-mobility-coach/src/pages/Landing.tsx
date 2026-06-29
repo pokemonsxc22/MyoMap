@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Brain, Dumbbell, TrendingUp, ChevronRight, ArrowRight,
-  Zap, Shield, Star, LayoutDashboard,
+  Zap, Shield, LayoutDashboard, MapPin, Clock, Bolt,
+  Leaf, PersonStanding, Target, Trophy, ScanLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -14,7 +15,7 @@ const fadeUp = {
 };
 const stagger = {
   hidden:  { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.13 } },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
 };
 
 const FEATURES = [
@@ -68,10 +69,15 @@ const STEPS = [
   },
 ];
 
-const TESTIMONIALS = [
-  { name: "Marcus T.", role: "Marathon runner", quote: "My IT band pain went from a 4/5 to barely noticeable after two weeks of following the routine MyoMap built me.", stars: 5 },
-  { name: "Priya K.", role: "Software engineer", quote: "I had lower back pain from sitting 10 hours a day. The AI caught exactly what my physio missed — hip flexor tightness.", stars: 5 },
-  { name: "Jordan R.", role: "CrossFit coach", quote: "Recommend this to all my athletes now. The movement screen comparison is a game changer for tracking rehab progress.", stars: 5 },
+const AI_INPUTS = [
+  { icon: MapPin,         label: "Pain location",       desc: "Where exactly it hurts" },
+  { icon: Clock,          label: "Duration",             desc: "How long you've had the issue" },
+  { icon: Bolt,           label: "Aggravating factors",  desc: "What makes it worse" },
+  { icon: Leaf,           label: "Relieving factors",    desc: "What makes it better" },
+  { icon: PersonStanding, label: "Activity level",       desc: "How active you are" },
+  { icon: Target,         label: "Your goal",            desc: "Reduce pain, improve mobility, return to sport" },
+  { icon: Trophy,         label: "Sport / activity",     desc: "Your specific movement demands" },
+  { icon: ScanLine,       label: "Movement screen",      desc: "Functional tests that reveal restrictions" },
 ];
 
 export default function Landing() {
@@ -101,14 +107,16 @@ export default function Landing() {
             initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
+            className="flex items-center gap-2.5 cursor-pointer"
+            onClick={() => setLocation("/")}
             data-testid="nav-logo"
           >
             <img
               src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
               alt="MyoMap"
-              className="h-10 w-auto hover:opacity-90 transition-opacity cursor-pointer"
-              onClick={() => setLocation("/")}
+              className="h-9 w-auto hover:opacity-90 transition-opacity"
             />
+            <span className="text-lg font-extrabold text-white tracking-tight">MyoMap</span>
           </motion.div>
 
           <motion.div
@@ -282,7 +290,6 @@ export default function Landing() {
           </motion.div>
 
           <div className="relative">
-            {/* Connecting line */}
             <div className="absolute left-6 md:left-1/2 top-8 bottom-8 w-px bg-gradient-to-b from-teal-500/50 via-teal-500/20 to-transparent -translate-x-px hidden md:block" />
 
             <div className="space-y-8">
@@ -297,13 +304,12 @@ export default function Landing() {
                 >
                   <div className="flex-1 md:text-right" style={{ textAlign: i % 2 === 1 ? "left" : undefined }}>
                     <div className={`p-7 rounded-2xl bg-[#111827]/80 border border-teal-500/15 hover:border-teal-500/30 hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-all ${i % 2 === 1 ? "text-left" : "md:text-right"}`}>
-                      <div className={`text-xs font-bold text-teal-500 tracking-widest uppercase mb-2`}>Step {step.num}</div>
+                      <div className="text-xs font-bold text-teal-500 tracking-widest uppercase mb-2">Step {step.num}</div>
                       <h3 className="text-2xl font-bold mb-3">{step.title}</h3>
                       <p className="text-slate-400 leading-relaxed">{step.desc}</p>
                     </div>
                   </div>
 
-                  {/* Center node */}
                   <div className="flex-shrink-0 w-14 h-14 rounded-full bg-teal-600 border-4 border-[#0a0f1a] flex items-center justify-center shadow-[0_0_20px_-4px_rgba(13,148,136,0.6)] z-10">
                     <step.icon className="w-6 h-6 text-white" />
                   </div>
@@ -316,7 +322,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Testimonials / Social Proof ───────────────────────────── */}
+      {/* ── What Our AI Looks At ───────────────────────────────────── */}
       <section className="relative z-10 py-28 px-6">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -326,13 +332,16 @@ export default function Landing() {
             variants={stagger}
             className="text-center mb-16"
           >
-            <motion.p variants={fadeUp} className="text-xs font-bold text-teal-500 tracking-[0.2em] uppercase mb-3">Social Proof</motion.p>
+            <motion.p variants={fadeUp} className="text-xs font-bold text-teal-500 tracking-[0.2em] uppercase mb-3">Comprehensive Analysis</motion.p>
             <motion.h2 variants={fadeUp} className="text-4xl md:text-5xl font-extrabold mb-4">
-              Join thousands mapping{" "}
+              What our AI{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-400">
-                their movement
+                looks at
               </span>
             </motion.h2>
+            <motion.p variants={fadeUp} className="text-lg text-slate-400 max-w-xl mx-auto">
+              Eight key inputs — not just where it hurts, but the full picture of how your body moves and why.
+            </motion.p>
           </motion.div>
 
           <motion.div
@@ -340,25 +349,20 @@ export default function Landing() {
             whileInView="visible"
             viewport={{ once: true, margin: "-80px" }}
             variants={stagger}
-            className="grid md:grid-cols-3 gap-6"
+            className="grid grid-cols-2 md:grid-cols-4 gap-4"
           >
-            {TESTIMONIALS.map((t) => (
+            {AI_INPUTS.map((input) => (
               <motion.div
-                key={t.name}
+                key={input.label}
                 variants={fadeUp}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="p-7 rounded-2xl bg-[#111827]/70 border border-teal-500/10 hover:border-teal-500/25 hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-all backdrop-blur-sm"
+                whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
+                className="p-6 rounded-2xl bg-[#111827]/80 border border-teal-500/12 backdrop-blur-sm hover:border-teal-500/30 hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.25)] transition-all group cursor-default"
               >
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: t.stars }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-teal-400 text-teal-400" />
-                  ))}
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-teal-500/20 transition-all">
+                  <input.icon className="w-5 h-5 text-teal-400" />
                 </div>
-                <p className="text-slate-300 leading-relaxed text-sm mb-5">"{t.quote}"</p>
-                <div>
-                  <p className="font-bold text-sm">{t.name}</p>
-                  <p className="text-xs text-slate-500">{t.role}</p>
-                </div>
+                <h3 className="font-bold text-sm text-white mb-1.5 leading-tight">{input.label}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{input.desc}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -390,11 +394,14 @@ export default function Landing() {
       {/* ── Footer ────────────────────────────────────────────────── */}
       <footer className="relative z-10 py-10 px-6 border-t border-teal-500/8 bg-[#070c14]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <img
-            src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
-            alt="MyoMap"
-            className="h-8 w-auto opacity-60"
-          />
+          <div className="flex items-center gap-2">
+            <img
+              src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
+              alt="MyoMap"
+              className="h-7 w-auto opacity-50"
+            />
+            <span className="text-sm font-bold text-slate-600">MyoMap</span>
+          </div>
           <p className="text-sm text-slate-600 order-last md:order-none">
             © {new Date().getFullYear()} MyoMap. All rights reserved.
           </p>

@@ -108,6 +108,7 @@ export default function Progress() {
   const [chatLoading,  setChatLoading]  = useState(false);
   const [chatError,    setChatError]    = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("mobilityProgress");
@@ -190,7 +191,7 @@ export default function Progress() {
       if (!res.ok || !data.answer) throw new Error(data.error ?? "Something went wrong");
       setChatMessages([...outgoing, { role: "assistant", content: data.answer }]);
       setChatThread((prev) => [...prev, { question, answer: data.answer! }]);
-      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      setTimeout(() => { if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }, 30);
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -211,13 +212,16 @@ export default function Progress() {
       {/* Nav */}
       <nav className="sticky top-0 w-full border-b border-teal-500/10 bg-[#0a0f1a]/85 backdrop-blur-xl z-50">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => setLocation("/")}
+          >
             <img
               src="https://okvnrbrnubtgplheyavw.supabase.co/storage/v1/object/public/assets/LOGO%20MYOMAP.png"
               alt="MyoMap"
-              className="h-9 w-auto cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setLocation("/")}
+              className="h-8 w-auto hover:opacity-90 transition-opacity"
             />
+            <span className="text-sm font-extrabold text-white tracking-tight">MyoMap</span>
           </div>
           <div className="flex items-center gap-1.5">
             <button
@@ -369,7 +373,7 @@ export default function Progress() {
 
               {/* Chat Thread */}
               {chatThread.length > 0 && (
-                <div className="px-5 pt-4 space-y-5 max-h-80 overflow-y-auto">
+                <div ref={chatContainerRef} className="px-5 pt-4 space-y-5 max-h-80 overflow-y-auto">
                   {chatThread.map((entry, i) => (
                     <div key={i} className="space-y-2">
                       <div className="flex justify-end">
