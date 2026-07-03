@@ -8,6 +8,8 @@ export interface PlanInfo {
   price: string;
   period: string;
   bestValue?: boolean;
+  savingsBadge?: string;
+  popularBadge?: string;
   benefits: string[];
 }
 
@@ -31,6 +33,7 @@ export const PLAN_DETAILS: Record<Plan, PlanInfo> = {
     name: "Pro Unlimited",
     price: "$7.99",
     period: "/mo",
+    popularBadge: "Most Popular",
     benefits: ["Unlimited assessments", "Unlimited AI chat", "No ads"],
   },
   pro_annual: {
@@ -39,8 +42,17 @@ export const PLAN_DETAILS: Record<Plan, PlanInfo> = {
     price: "$49.99",
     period: "/yr",
     bestValue: true,
+    savingsBadge: "Save 48% vs monthly",
     benefits: ["Unlimited assessments", "Unlimited AI chat", "No ads", "Best value — save over paying monthly"],
   },
+};
+
+export type DiscountType = "lifetime" | "trial_7" | "trial_30";
+
+const DISCOUNT_CODES: Record<string, { type: DiscountType; days?: number }> = {
+  FREEFRVRFL: { type: "lifetime" },
+  LAUNCHWEEK: { type: "trial_7", days: 7 },
+  MAXMONTH: { type: "trial_30", days: 30 },
 };
 
 export const FREE_ASSESSMENTS_PER_DAY = 2;
@@ -71,6 +83,9 @@ interface UsageRow {
   assessments_today: number;
   assessments_reset_at: string | null;
   onboarding_complete: boolean;
+  discount_code: string | null;
+  discount_type: DiscountType | null;
+  discount_expires_at: string | null;
 }
 
 function isSameUtcDay(a: Date, b: Date): boolean {
@@ -82,7 +97,17 @@ function isSameUtcDay(a: Date, b: Date): boolean {
 }
 
 // Fetches current usage/plan for a user, resetting daily counters if the
-// stored reset timestamp is from a previous day.
+// stored reset timestamp is from a previous day, and reverting expired
+// discount-code plans back to free.
+//
+// `onboarding_complete` and the `discount_*` columns are fetched in separate
+// queries from the core usage columns. This is intentional: those columns
+// were added in later migrations, and if a project hasn't applied one of
+// those migrations yet, we don't want an "unknown column" error on that
+// query to also wipe out the core plan/usage data (which would incorrectly
+// reset a paying user back to the free plan). Missing onboarding/discount
+// columns degrade gracefully instead (onboarding treated as already done,
+// discount treated as none).
 export async function getUsageData(userId: string): Promise<UsageRow> {
   const fallback: UsageRow = {
     plan: "free",
@@ -90,23 +115,47 @@ export async function getUsageData(userId: string): Promise<UsageRow> {
     ai_messages_reset_at: null,
     assessments_today: 0,
     assessments_reset_at: null,
-    onboarding_complete: false,
+    onboarding_complete: true,
+    discount_code: null,
+    discount_type: null,
+    discount_expires_at: null,
   };
 
   if (!supabase) return fallback;
 
   const { data, error } = await supabase
     .from("users")
-    .select("plan, ai_messages_today, ai_messages_reset_at, assessments_today, assessments_reset_at, onboarding_complete")
+    .select("plan, ai_messages_today, ai_messages_reset_at, assessments_today, assessments_reset_at")
     .eq("id", userId)
     .maybeSingle();
 
   if (error || !data) return fallback;
 
-  const row = data as UsageRow;
+  const row: UsageRow = {
+    ...(data as Omit<UsageRow, "onboarding_complete" | "discount_code" | "discount_type" | "discount_expires_at">),
+    onboarding_complete: true,
+    discount_code: null,
+    discount_type: null,
+    discount_expires_at: null,
+  };
+
+  const [{ data: onboardingRow }, { data: discountRow }] = await Promise.all([
+    supabase.from("users").select("onboarding_complete").eq("id", userId).maybeSingle(),
+    supabase.from("users").select("discount_code, discount_type, discount_expires_at").eq("id", userId).maybeSingle(),
+  ]);
+
+  if (onboardingRow && typeof onboardingRow.onboarding_complete === "boolean") {
+    row.onboarding_complete = onboardingRow.onboarding_complete;
+  }
+  if (discountRow) {
+    row.discount_code = (discountRow.discount_code as string | null) ?? null;
+    row.discount_type = (discountRow.discount_type as DiscountType | null) ?? null;
+    row.discount_expires_at = (discountRow.discount_expires_at as string | null) ?? null;
+  }
+
   const now = new Date();
   let needsUpdate = false;
-  const patch: Partial<UsageRow> = {};
+  const patch: Record<string, unknown> = {};
 
   if (!row.ai_messages_reset_at || !isSameUtcDay(new Date(row.ai_messages_reset_at), now)) {
     row.ai_messages_today = 0;
@@ -124,11 +173,55 @@ export async function getUsageData(userId: string): Promise<UsageRow> {
     needsUpdate = true;
   }
 
+  // Expired time-limited discount (lifetime codes have no expiry and are skipped).
+  if (row.discount_expires_at && new Date(row.discount_expires_at) <= now) {
+    row.plan = "free";
+    row.discount_code = null;
+    row.discount_type = null;
+    row.discount_expires_at = null;
+    patch.plan = "free";
+    patch.discount_code = null;
+    patch.discount_type = null;
+    patch.discount_expires_at = null;
+    needsUpdate = true;
+  }
+
   if (needsUpdate) {
     await supabase.from("users").update(patch).eq("id", userId);
   }
 
   return row;
+}
+
+// Validates and applies a discount code for the given user, updating their
+// plan (and discount metadata) in Supabase. Returns a friendly error message
+// on failure so the UI can surface it directly.
+export async function applyDiscountCode(
+  userId: string,
+  rawCode: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return { ok: false, error: "Enter a discount code." };
+
+  const entry = DISCOUNT_CODES[code];
+  if (!entry) return { ok: false, error: "Invalid discount code" };
+
+  if (!supabase) return { ok: false, error: "Discount codes aren't available right now." };
+
+  const patch: Record<string, unknown> = {
+    plan: "pro_annual" satisfies Plan,
+    discount_code: code,
+    discount_type: entry.type,
+    discount_expires_at:
+      entry.type === "lifetime"
+        ? null
+        : new Date(Date.now() + (entry.days ?? 0) * 24 * 60 * 60 * 1000).toISOString(),
+  };
+
+  const { error } = await supabase.from("users").update(patch).eq("id", userId);
+  if (error) return { ok: false, error: "Something went wrong applying that code. Please try again." };
+
+  return { ok: true };
 }
 
 export async function checkAssessmentLimit(

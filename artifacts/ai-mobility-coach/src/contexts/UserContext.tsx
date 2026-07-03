@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { User } from "@supabase/supabase-js";
-import { getUsageData, type Plan } from "@/lib/subscription";
+import { getUsageData, markOnboardingComplete, type Plan } from "@/lib/subscription";
 
 export const USER_NAME_KEY = "myomap_user_name";
 
@@ -15,6 +15,7 @@ interface UserCtx {
   loading:   boolean;
   signOut:   () => Promise<void>;
   refreshPlan: () => Promise<void>;
+  completeOnboarding: () => Promise<void>;
 }
 
 const UserContext = createContext<UserCtx>({
@@ -27,6 +28,7 @@ const UserContext = createContext<UserCtx>({
   loading:   true,
   signOut:   async () => {},
   refreshPlan: async () => {},
+  completeOnboarding: async () => {},
 });
 
 // Resolves a display name for the given auth user, in priority order:
@@ -127,6 +129,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (user) await loadPlan(user.id);
   };
 
+  // Marks onboarding as complete. Sets local state immediately (optimistic)
+  // so gated routes unblock right away, regardless of whether the DB write
+  // succeeds or the `onboarding_complete` migration has been applied yet —
+  // persistence to Supabase happens in the background.
+  const completeOnboarding = async () => {
+    setOnboardingComplete(true);
+    if (user) await markOnboardingComplete(user.id);
+  };
+
   return (
     <UserContext.Provider
       value={{
@@ -139,6 +150,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         loading,
         signOut,
         refreshPlan,
+        completeOnboarding,
       }}
     >
       {children}

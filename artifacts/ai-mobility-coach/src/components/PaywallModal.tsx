@@ -1,6 +1,7 @@
 import { X, Check, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PLAN_DETAILS, type Plan } from "@/lib/subscription";
+import DiscountCodeSection from "@/components/DiscountCodeSection";
 
 interface PaywallModalProps {
   open: boolean;
@@ -77,10 +78,25 @@ export default function PaywallModal({ open, onClose, reason }: PaywallModalProp
                 )}
 
                 <h3 className="text-base font-bold mt-1">{plan.name}</h3>
-                <p className="mt-1 mb-4">
+                {plan.popularBadge && (
+                  <span className="mt-1 text-[10px] font-bold uppercase tracking-wide text-teal-400">
+                    {plan.popularBadge}
+                  </span>
+                )}
+                <p className="mt-1 mb-2">
                   <span className="text-2xl font-extrabold">{plan.price}</span>
                   <span className="text-sm text-slate-400">{plan.period}</span>
                 </p>
+
+                {plan.savingsBadge && (
+                  <span
+                    className="inline-block mb-3 w-fit text-[11px] font-extrabold text-white bg-teal-500 px-2.5 py-1 rounded-lg shadow-[0_0_20px_-4px_rgba(13,148,136,0.8)]"
+                    data-testid={`badge-savings-${planId}`}
+                  >
+                    {plan.savingsBadge}
+                  </span>
+                )}
+                {!plan.savingsBadge && <div className="mb-2" />}
 
                 <ul className="space-y-2 mb-6 flex-1">
                   {plan.benefits.map((b) => (
@@ -105,6 +121,10 @@ export default function PaywallModal({ open, onClose, reason }: PaywallModalProp
               </div>
             );
           })}
+        </div>
+
+        <div className="px-6 pb-8">
+          <DiscountCodeSection onApplied={onClose} />
         </div>
       </div>
     </div>

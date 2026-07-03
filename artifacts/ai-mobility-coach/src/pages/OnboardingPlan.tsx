@@ -4,7 +4,8 @@ import { Check } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
-import { PLAN_DETAILS, markOnboardingComplete, type Plan } from "@/lib/subscription";
+import { PLAN_DETAILS, type Plan } from "@/lib/subscription";
+import DiscountCodeSection from "@/components/DiscountCodeSection";
 
 const ALL_PLANS: Plan[] = ["free", "pro_monthly", "pro_unlimited", "pro_annual"];
 
@@ -16,7 +17,7 @@ const fadeUp = {
 export default function OnboardingPlan() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { userId, onboardingComplete, refreshPlan } = useUser();
+  const { userId, onboardingComplete, completeOnboarding } = useUser();
   const [submittingPlan, setSubmittingPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
@@ -25,8 +26,7 @@ export default function OnboardingPlan() {
 
   const finishOnboarding = async () => {
     if (!userId) return;
-    await markOnboardingComplete(userId);
-    await refreshPlan();
+    await completeOnboarding();
     setLocation("/dashboard");
   };
 
@@ -97,10 +97,25 @@ export default function OnboardingPlan() {
                 )}
 
                 <h3 className="text-lg font-bold mt-1">{plan.name}</h3>
-                <p className="mt-2 mb-5">
+                {plan.popularBadge && (
+                  <span className="mt-1 text-[11px] font-bold uppercase tracking-wide text-teal-400">
+                    {plan.popularBadge}
+                  </span>
+                )}
+                <p className="mt-2 mb-3">
                   <span className="text-3xl font-extrabold">{plan.price}</span>
                   <span className="text-sm text-slate-400">{plan.period}</span>
                 </p>
+
+                {plan.savingsBadge && (
+                  <span
+                    className="inline-block mb-4 w-fit text-xs font-extrabold text-white bg-teal-500 px-3 py-1.5 rounded-lg shadow-[0_0_20px_-4px_rgba(13,148,136,0.8)]"
+                    data-testid={`badge-savings-${planId}`}
+                  >
+                    {plan.savingsBadge}
+                  </span>
+                )}
+                {!plan.savingsBadge && <div className="mb-2" />}
 
                 <ul className="space-y-2.5 mb-7 flex-1">
                   {plan.benefits.map((b) => (
@@ -128,6 +143,10 @@ export default function OnboardingPlan() {
               </div>
             );
           })}
+        </div>
+
+        <div className="max-w-md mx-auto">
+          <DiscountCodeSection />
         </div>
       </motion.div>
     </div>
