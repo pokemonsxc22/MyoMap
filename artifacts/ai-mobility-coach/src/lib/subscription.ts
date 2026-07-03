@@ -70,6 +70,7 @@ interface UsageRow {
   ai_messages_reset_at: string | null;
   assessments_today: number;
   assessments_reset_at: string | null;
+  onboarding_complete: boolean;
 }
 
 function isSameUtcDay(a: Date, b: Date): boolean {
@@ -89,13 +90,14 @@ export async function getUsageData(userId: string): Promise<UsageRow> {
     ai_messages_reset_at: null,
     assessments_today: 0,
     assessments_reset_at: null,
+    onboarding_complete: false,
   };
 
   if (!supabase) return fallback;
 
   const { data, error } = await supabase
     .from("users")
-    .select("plan, ai_messages_today, ai_messages_reset_at, assessments_today, assessments_reset_at")
+    .select("plan, ai_messages_today, ai_messages_reset_at, assessments_today, assessments_reset_at, onboarding_complete")
     .eq("id", userId)
     .maybeSingle();
 
@@ -142,6 +144,11 @@ export async function checkAssessmentLimit(
     limit: FREE_ASSESSMENTS_PER_DAY,
     plan: usage.plan,
   };
+}
+
+export async function markOnboardingComplete(userId: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from("users").update({ onboarding_complete: true }).eq("id", userId);
 }
 
 export async function incrementAssessmentCount(userId: string): Promise<void> {

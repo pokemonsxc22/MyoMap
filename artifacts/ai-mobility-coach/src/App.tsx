@@ -17,6 +17,7 @@ import Retake from "@/pages/Retake";
 import Progress from "@/pages/Progress";
 import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
+import OnboardingPlan from "@/pages/OnboardingPlan";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -82,10 +83,20 @@ function AuthRedirectHandler() {
 
 // Route-level auth guard: redirects to /welcome when there is no active session.
 // Works in tandem with per-page guards already in Dashboard and Intake.
-function PrivateRoute({ component: Component }: { component: React.ComponentType }) {
-  const { userId, loading } = useUser();
+// When `requireOnboarding` is true (the default), users who haven't completed
+// the one-time plan-selection screen are redirected to /onboarding first.
+function PrivateRoute({
+  component: Component,
+  requireOnboarding = true,
+}: {
+  component: React.ComponentType;
+  requireOnboarding?: boolean;
+}) {
+  const { userId, loading, onboardingComplete } = useUser();
   if (loading) return null;
   if (!userId) return <Redirect to="/welcome" />;
+  if (requireOnboarding && onboardingComplete === null) return null;
+  if (requireOnboarding && onboardingComplete === false) return <Redirect to="/onboarding" />;
   return <Component />;
 }
 
@@ -100,6 +111,7 @@ function Router() {
         <Route path="/signin"          component={SignIn} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password"  component={ResetPassword} />
+        <Route path="/onboarding"      component={() => <PrivateRoute component={OnboardingPlan} requireOnboarding={false} />} />
         <Route path="/dashboard"       component={() => <PrivateRoute component={Dashboard} />} />
         <Route path="/intake"          component={() => <PrivateRoute component={Intake} />} />
         <Route path="/results"         component={() => <PrivateRoute component={Results} />} />

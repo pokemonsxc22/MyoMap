@@ -38,7 +38,7 @@ export default function Welcome() {
     e.preventDefault();
     const trimName  = name.trim();
     const trimEmail = email.trim();
-    if (!trimName)           { setError("First name is required."); return; }
+    if (!trimName)           { setError("Full name is required."); return; }
     if (!trimEmail)          { setError("Email address is required."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
 
@@ -55,7 +55,7 @@ export default function Welcome() {
     const { data, error: signUpErr } = await supabase.auth.signUp({
       email: trimEmail,
       password,
-      options: { data: { name: trimName } },
+      options: { data: { full_name: trimName, name: trimName } },
     });
 
     if (signUpErr) {
@@ -151,7 +151,7 @@ export default function Welcome() {
                   type="text"
                   value={name}
                   onChange={(e) => { setName(e.target.value); setError(null); setEmailConflict(false); }}
-                  placeholder="First name"
+                  placeholder="Full name"
                   autoFocus
                   autoComplete="given-name"
                   className={inputClass}

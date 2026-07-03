@@ -11,6 +11,7 @@ interface UserCtx {
   userName:  string | null;
   userEmail: string | null;
   plan:      Plan;
+  onboardingComplete: boolean | null;
   loading:   boolean;
   signOut:   () => Promise<void>;
   refreshPlan: () => Promise<void>;
@@ -22,16 +23,29 @@ const UserContext = createContext<UserCtx>({
   userName:  null,
   userEmail: null,
   plan:      "free",
+  onboardingComplete: null,
   loading:   true,
   signOut:   async () => {},
   refreshPlan: async () => {},
 });
 
-// Resolves a display name for the given auth user: cached localStorage value,
-// else the `users.name` column, else falls back to the account's email.
+// Resolves a display name for the given auth user, in priority order:
+// 1. `user_metadata.full_name` (set at sign up)
+// 2. `user_metadata.name` (legacy sign ups, kept for backwards compatibility)
+// 3. the `users.name` table column (legacy fallback for pre-metadata accounts)
+// 4. the part of the account's email before the `@` (never the full email)
 async function resolveUserName(authUser: User): Promise<string> {
-  const cached = localStorage.getItem(USER_NAME_KEY);
-  if (cached) return cached;
+  const metaFullName = (authUser.user_metadata?.full_name as string | undefined)?.trim();
+  if (metaFullName) {
+    localStorage.setItem(USER_NAME_KEY, metaFullName);
+    return metaFullName;
+  }
+
+  const metaName = (authUser.user_metadata?.name as string | undefined)?.trim();
+  if (metaName) {
+    localStorage.setItem(USER_NAME_KEY, metaName);
+    return metaName;
+  }
 
   if (supabase) {
     const { data } = await supabase
@@ -46,7 +60,8 @@ async function resolveUserName(authUser: User): Promise<string> {
     }
   }
 
-  const fallback = authUser.email ?? "there";
+  const emailPrefix = authUser.email?.split("@")[0]?.trim();
+  const fallback = emailPrefix || "there";
   localStorage.setItem(USER_NAME_KEY, fallback);
   return fallback;
 }
@@ -55,11 +70,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser]         = useState<User | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [plan, setPlan]         = useState<Plan>("free");
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const [loading, setLoading]   = useState(true);
 
   const loadPlan = async (userId: string) => {
     const usage = await getUsageData(userId);
     setPlan(usage.plan);
+    setOnboardingComplete(usage.onboarding_complete);
   };
 
   useEffect(() => {
@@ -82,6 +99,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (!authUser) {
         setUserName(null);
         setPlan("free");
+        setOnboardingComplete(null);
         return;
       }
 
@@ -102,6 +120,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setUserName(null);
     setPlan("free");
+    setOnboardingComplete(null);
   };
 
   const refreshPlan = async () => {
@@ -116,6 +135,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         userName,
         userEmail: user?.email ?? null,
         plan,
+        onboardingComplete,
         loading,
         signOut,
         refreshPlan,

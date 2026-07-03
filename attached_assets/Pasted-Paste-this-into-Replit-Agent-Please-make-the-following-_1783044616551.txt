@@ -1,0 +1,31 @@
+Paste this into Replit Agent:
+
+---
+
+Please make the following two fixes to MyoMap. Do not break any existing functionality.
+
+**1. FIX WELCOME BACK NAME**
+
+On the sign up page, add a "Full Name" input field above the email field. When the user signs up, save their name to Supabase Auth metadata (`data: { full_name: name }`) as part of the `signUp` call. Then on the dashboard, pull the name from `user.user_metadata.full_name` for the welcome back message. If it's not set, fall back to showing the part of their email before the @ symbol (not the full email address). Make sure this works for both newly signed up users and existing users who may not have a name set.
+
+**2. ONBOARDING PLAN SELECTION SCREEN**
+
+After a user successfully signs up and verifies their email, before taking them to the dashboard, show a full-screen onboarding plan selection page with the following:
+
+- MyoMap logo at the top
+- Headline: "Choose Your Plan" with a subheading: "Start free or unlock the full MyoMap experience"
+- Display all four plans in cards side by side (or stacked on mobile):
+  - **Free** — $0, 2 assessments/day, no AI access, ads before results
+  - **Pro Monthly** — $4.99/mo, unlimited assessments, 20 AI messages/day, no ads
+  - **Pro Unlimited** — $7.99/mo, unlimited assessments, unlimited AI with rate limiting, no ads
+  - **Pro Annual** — $49.99/yr, unlimited assessments, unlimited AI with rate limiting, no ads — show a "Best Value" badge in teal
+- Each paid plan card has a "Get Started" button — for now show a toast saying "Stripe integration coming soon"
+- The Free plan card has a "Continue with Free" button that takes them straight to the dashboard
+- Use MyoMap branding (teal #0D9488, dark slate #1E293B) and make it look polished and modern with clean card shadows and consistent typography
+- This screen should only show once per user — after they select any option, set an `onboarding_complete` boolean column to true in the `users` table in Supabase and never show the screen again for that user
+
+Add `onboarding_complete` (boolean, default false) to the `users` table if it doesn't already exist.
+
+---
+
+Let me know what it builds or if it hits any errors!
