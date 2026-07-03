@@ -1,1 +1,2 @@
 - [Security architecture](security-architecture.md) — helmet, CORS allowlist, rate limiting, input sanitization pattern for this app.
+- [Supabase email confirmation blocks e2e signup tests](supabase-email-confirmation-testing.md) — this project's Supabase auth requires email confirmation, so automated signup-based e2e tests get stuck; need a pre-confirmed test account or a service role key to bypass.

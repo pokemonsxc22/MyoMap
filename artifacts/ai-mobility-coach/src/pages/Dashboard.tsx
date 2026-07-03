@@ -4,11 +4,17 @@ import {
   Activity, PlusCircle, Send, CheckCircle2,
   RefreshCcw, Flame, MessageCircle, LogOut,
   ChevronLeft, ChevronRight, X, Calendar as CalendarIcon,
+  User as UserIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  checkAiChatAccess, incrementAiMessageCount, hasUnlimitedAiChat,
+  getRateLimitCooldownSeconds, recordRateLimitedMessage,
+} from "@/lib/subscription";
+import PaywallModal from "@/components/PaywallModal";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 
@@ -269,6 +275,14 @@ export default function Dashboard() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError]     = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
+
+  useEffect(() => {
+    if (rateLimitCooldown <= 0) return;
+    const t = setTimeout(() => setRateLimitCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [rateLimitCooldown]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Section C — Streak
@@ -369,7 +383,24 @@ export default function Dashboard() {
   // ── Handlers ───────────────────────────────────────────────────
   const handleSendMessage = async () => {
     const msg = chatInput.trim();
-    if (!msg || chatLoading) return;
+    if (!msg || chatLoading || !userId) return;
+
+    const access = await checkAiChatAccess(userId);
+    if (access.reason === "no_access") { setPaywallOpen(true); return; }
+    if (access.reason === "daily_limit") {
+      setChatError("You've used all 20 AI messages today. Upgrade to Pro Unlimited for unlimited chat.");
+      return;
+    }
+    if (hasUnlimitedAiChat(access.plan)) {
+      const cooldown = getRateLimitCooldownSeconds();
+      if (cooldown > 0) {
+        setRateLimitCooldown(cooldown);
+        setChatError(`You're sending messages too quickly. Please wait ${cooldown}s.`);
+        return;
+      }
+      recordRateLimitedMessage();
+    }
+
     setChatInput("");
     setChatLoading(true);
     setChatError(null);
@@ -390,6 +421,7 @@ export default function Dashboard() {
       const { cleanText, update } = parseRoutineUpdate(data.reply);
       setChatHistory([...outgoing, { role: "assistant", content: cleanText }]);
       setTimeout(scrollChatToBottom, 30);
+      void incrementAiMessageCount(userId);
 
       if (update) {
         const slug = MUSCLE_GROUP_TO_SLUG[update.muscle_group];
@@ -459,6 +491,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground">
+      <PaywallModal open={paywallOpen} reason="ai_chat" onClose={() => setPaywallOpen(false)} />
       {/* Animated glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-600/10 blur-[160px] rounded-full" />
@@ -631,13 +664,23 @@ export default function Dashboard() {
             />
             <span className="text-sm font-extrabold text-white tracking-tight">MyoMap</span>
           </div>
-          <button
-            onClick={() => { void signOut().then(() => setLocation("/")); }}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 text-slate-400 hover:text-foreground hover:border-white/20 transition-all text-xs font-medium"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Sign out
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setLocation("/profile")}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 text-slate-400 hover:text-foreground hover:border-white/20 transition-all text-xs font-medium"
+              data-testid="button-nav-profile"
+            >
+              <UserIcon className="w-3.5 h-3.5" />
+              Profile
+            </button>
+            <button
+              onClick={() => { void signOut().then(() => setLocation("/")); }}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 text-slate-400 hover:text-foreground hover:border-white/20 transition-all text-xs font-medium"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign out
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -764,11 +807,15 @@ export default function Dashboard() {
               />
               <button
                 onClick={() => void handleSendMessage()}
-                disabled={!chatInput.trim() || chatLoading}
+                disabled={!chatInput.trim() || chatLoading || rateLimitCooldown > 0}
                 className="self-end flex-shrink-0 w-8 h-8 rounded-lg bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 data-testid="checkin-submit"
               >
-                <Send className="w-3.5 h-3.5" />
+                {rateLimitCooldown > 0 ? (
+                  <span className="text-[10px] font-bold tabular-nums">{rateLimitCooldown}s</span>
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
               </button>
             </div>
           </div>

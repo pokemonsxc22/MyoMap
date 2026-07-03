@@ -6,6 +6,12 @@ import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
+import {
+  checkAiChatAccess, incrementAiMessageCount, hasUnlimitedAiChat,
+  getRateLimitCooldownSeconds, recordRateLimitedMessage, showsAds,
+} from "@/lib/subscription";
+import PaywallModal from "@/components/PaywallModal";
+import AdBanner from "@/components/AdBanner";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -197,11 +203,20 @@ export default function Results() {
   const [showResultsOnboarding, setShowResultsOnboarding] = useState(false);
 
   // ── Streak tracking ────────────────────────────────────────────────────────
-  const { userId: authUserId } = useUser();
+  const { userId: authUserId, plan } = useUser();
   const userId = authUserId ?? "";
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [markingComplete, setMarkingComplete] = useState(false);
   const [streakError, setStreakError] = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
+  const [adWatched, setAdWatched] = useState(false);
+
+  useEffect(() => {
+    if (rateLimitCooldown <= 0) return;
+    const t = setTimeout(() => setRateLimitCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [rateLimitCooldown]);
 
   const handleMarkComplete = async () => {
     setMarkingComplete(true);
@@ -230,7 +245,24 @@ export default function Results() {
 
   const handleFollowup = async () => {
     const question = chatInput.trim();
-    if (!question || chatLoading) return;
+    if (!question || chatLoading || !userId) return;
+
+    const access = await checkAiChatAccess(userId);
+    if (access.reason === "no_access") { setPaywallOpen(true); return; }
+    if (access.reason === "daily_limit") {
+      setChatError("You've used all 20 AI messages today. Upgrade to Pro Unlimited for unlimited chat.");
+      return;
+    }
+    if (hasUnlimitedAiChat(access.plan)) {
+      const cooldown = getRateLimitCooldownSeconds();
+      if (cooldown > 0) {
+        setRateLimitCooldown(cooldown);
+        setChatError(`You're sending messages too quickly. Please wait ${cooldown}s.`);
+        return;
+      }
+      recordRateLimitedMessage();
+    }
+
     setChatInput("");
     setChatLoading(true);
     setChatError(null);
@@ -255,6 +287,7 @@ export default function Results() {
       setChatMessages([...outgoing, { role: "assistant" as const, content: cleanText }]);
       setChatThread((prev) => [...prev, { question, answer: cleanText }]);
       setTimeout(() => { if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }, 30);
+      void incrementAiMessageCount(userId);
       if (exercises !== null) {
         setOverrideExercises(exercises);
         if (assessmentId) {
@@ -351,8 +384,17 @@ export default function Results() {
 
   if (!parsed) return null;
 
+  if (showsAds(plan) && !isPlaceholder && !adWatched) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1a] text-foreground flex items-center justify-center px-4">
+        <AdBanner onComplete={() => setAdWatched(true)} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground">
+      <PaywallModal open={paywallOpen} reason="ai_chat" onClose={() => setPaywallOpen(false)} />
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="fixed top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/10 blur-[160px]" />
         <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />
@@ -439,6 +481,13 @@ export default function Results() {
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
               Dashboard
+            </button>
+            <button
+              onClick={() => setLocation("/profile")}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-slate-400 hover:text-foreground border border-white/10 hover:border-white/20 transition-all"
+              data-testid="button-nav-profile"
+            >
+              Profile
             </button>
             <button
               onClick={() => setLocation("/")}
@@ -551,11 +600,15 @@ export default function Results() {
                     />
                     <button
                       onClick={() => void handleFollowup()}
-                      disabled={!chatInput.trim() || chatLoading}
+                      disabled={!chatInput.trim() || chatLoading || rateLimitCooldown > 0}
                       className="self-end flex-shrink-0 w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_16px_-4px_rgba(13,148,136,0.5)]"
                       data-testid="followup-submit"
                     >
-                      <Send className="w-4 h-4" />
+                      {rateLimitCooldown > 0 ? (
+                        <span className="text-[10px] font-bold tabular-nums">{rateLimitCooldown}s</span>
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                   <p className="text-xs text-muted-foreground/40 mt-2 pl-1">Enter to send · Shift+Enter for new line</p>

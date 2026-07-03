@@ -10,6 +10,11 @@ import { useLocation } from "wouter";
 import { type ComparisonResult } from "@/lib/movementScreen";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
+import {
+  checkAiChatAccess, incrementAiMessageCount, hasUnlimitedAiChat,
+  getRateLimitCooldownSeconds, recordRateLimitedMessage,
+} from "@/lib/subscription";
+import PaywallModal from "@/components/PaywallModal";
 import ReactMarkdown from "react-markdown";
 
 const fadeInUp = {
@@ -107,6 +112,14 @@ export default function Progress() {
   const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [chatLoading,  setChatLoading]  = useState(false);
   const [chatError,    setChatError]    = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
+
+  useEffect(() => {
+    if (rateLimitCooldown <= 0) return;
+    const t = setTimeout(() => setRateLimitCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [rateLimitCooldown]);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -168,7 +181,24 @@ export default function Progress() {
 
   const handleChat = async () => {
     const question = chatInput.trim();
-    if (!question || chatLoading) return;
+    if (!question || chatLoading || !userId) return;
+
+    const access = await checkAiChatAccess(userId);
+    if (access.reason === "no_access") { setPaywallOpen(true); return; }
+    if (access.reason === "daily_limit") {
+      setChatError("You've used all 20 AI messages today. Upgrade to Pro Unlimited for unlimited chat.");
+      return;
+    }
+    if (hasUnlimitedAiChat(access.plan)) {
+      const cooldown = getRateLimitCooldownSeconds();
+      if (cooldown > 0) {
+        setRateLimitCooldown(cooldown);
+        setChatError(`You're sending messages too quickly. Please wait ${cooldown}s.`);
+        return;
+      }
+      recordRateLimitedMessage();
+    }
+
     setChatInput("");
     setChatLoading(true);
     setChatError(null);
@@ -192,6 +222,7 @@ export default function Progress() {
       setChatMessages([...outgoing, { role: "assistant", content: data.answer }]);
       setChatThread((prev) => [...prev, { question, answer: data.answer! }]);
       setTimeout(() => { if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight; }, 30);
+      void incrementAiMessageCount(userId);
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -204,6 +235,7 @@ export default function Progress() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground relative">
+      <PaywallModal open={paywallOpen} reason="ai_chat" onClose={() => setPaywallOpen(false)} />
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/10 blur-[160px]" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />
@@ -229,6 +261,12 @@ export default function Progress() {
               className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white transition-all shadow-[0_0_14px_-4px_rgba(13,148,136,0.5)] hover:scale-[1.02]"
             >
               Dashboard
+            </button>
+            <button
+              onClick={() => setLocation("/profile")}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-slate-400 hover:text-foreground border border-white/10 hover:border-white/20 transition-all"
+            >
+              Profile
             </button>
             <button
               onClick={() => setLocation("/")}
@@ -459,11 +497,15 @@ export default function Progress() {
                   />
                   <button
                     onClick={() => void handleChat()}
-                    disabled={!chatInput.trim() || chatLoading}
+                    disabled={!chatInput.trim() || chatLoading || rateLimitCooldown > 0}
                     className="self-end flex-shrink-0 w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     data-testid="progress-chat-submit"
                   >
-                    <Send className="w-4 h-4" />
+                    {rateLimitCooldown > 0 ? (
+                      <span className="text-[10px] font-bold tabular-nums">{rateLimitCooldown}s</span>
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground/40 mt-2 pl-1">Enter to send · Shift+Enter for new line</p>

@@ -1,0 +1,51 @@
+Please implement the following features for MyoMap. Do not break any existing functionality including auth, assessments, or the Groq AI routine generation.
+
+1. SUBSCRIPTION TIERS
+Create a subscription system with three tiers stored in the users table (add a plan column with values free, pro_monthly, pro_unlimited, pro_annual). Default all existing and new users to free.
+Tier rules:
+
+Free: No AI chat access. Maximum 2 assessments per day. Before showing assessment results, play one ad (use a placeholder ad component — a styled banner that says "Ad" with a teal border and a 5 second countdown before results are revealed).
+Pro Monthly ($4.99/month): Unlimited assessments. Limited AI chat (max 20 AI messages per day, tracked in Supabase). No ads.
+Pro Unlimited ($7.99/month): Unlimited assessments. Unlimited AI chat with rate limiting (max 5 messages per minute, enforced client-side with a cooldown timer shown to the user). No ads.
+Pro Annual ($49.99/year): Unlimited assessments. Unlimited AI chat with rate limiting (max 5 messages per minute, enforced client-side with a cooldown timer shown to the user). No ads. Show a "Best Value" badge.
+
+Enforce these limits in the frontend with clear user-facing messages when limits are hit (e.g. "You've reached your 2 free assessments today. Upgrade to Pro for unlimited access.").
+
+2. PAYWALL MODAL
+When a free user tries to access AI chat or hits their daily assessment limit, show a clean paywall modal with MyoMap teal (#0D9488) and dark slate (#1E293B) branding. The modal should show:
+
+A headline: "Upgrade to MyoMap Pro"
+All three paid plans displayed clearly (Pro Monthly $4.99/mo, Pro Unlimited $7.99/mo, Pro Annual $49.99/yr with a "Best Value" badge)
+A list of Pro benefits per plan (unlimited assessments, AI chat access, no ads)
+CTA buttons for each plan — for now they should just close the modal and show a toast saying "Stripe integration coming soon"
+An X button to dismiss
+
+
+3. PROFILE PAGE
+Add a Profile button in the top navigation bar, placed next to the Dashboard button. Style it consistently with the existing nav.
+The profile page should include the following sections with clean, modern UI using the existing teal/slate color scheme:
+
+Plan & Billing: Show current plan name (Free / Pro Monthly / Pro Unlimited / Pro Annual), renewal date if applicable (placeholder for now), and an "Upgrade" button for free users or "Manage Billing" for pro users (both placeholder for now)
+AI Usage: Show messages used today out of their limit (e.g. "12/20 AI messages used today") — hide this section for free users and Pro Unlimited/Annual users since they have unlimited
+Assessment History: Fetch and display all past assessments from Supabase for the logged-in user, showing date, body area targeted, and a collapsible section to view the full routine. Show a message if no assessments yet.
+Account: Show the user's email and name. Include a "Delete Account" button that opens a confirmation modal before deleting (delete from Supabase auth and users table). The confirmation modal should require the user to type "DELETE" before the button becomes active.
+
+
+4. FORGOT PASSWORD
+Add a "Forgot Password?" link on the sign in page. When clicked it should show a simple form asking for the user's email, then send a password reset email via Supabase Auth. Show a success message telling the user to check their email. The reset link in the email should redirect back to myomapai.com with a password reset form that lets them set a new password.
+
+5. FIX WELCOME BACK NAME
+On the dashboard, the "Welcome back" message sometimes doesn't show the user's name. Fix this so it always correctly fetches and displays the authenticated user's display name from Supabase after sign in. If no display name is set, fall back to showing their email address instead.
+
+6. DATABASE CHANGES
+Add the following columns to the users table in Supabase if they don't already exist:
+
+plan (text, default 'free')
+ai_messages_today (integer, default 0)
+ai_messages_reset_at (timestamp)
+assessments_today (integer, default 0)
+assessments_reset_at (timestamp)
+
+Add RLS policies so users can only read and update their own row.
+
+Make all UI consistent with the existing MyoMap design system (teal #0D9488, dark slate #1E293B, existing card/button styles). Do not change the assessment flow, auth flow, or Groq integration.

@@ -16,6 +16,7 @@ import Results from "@/pages/Results";
 import Retake from "@/pages/Retake";
 import Progress from "@/pages/Progress";
 import Dashboard from "@/pages/Dashboard";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -104,6 +105,7 @@ function Router() {
         <Route path="/results"         component={() => <PrivateRoute component={Results} />} />
         <Route path="/retake"          component={() => <PrivateRoute component={Retake} />} />
         <Route path="/progress"        component={() => <PrivateRoute component={Progress} />} />
+        <Route path="/profile"         component={() => <PrivateRoute component={Profile} />} />
         <Route component={NotFound} />
       </Switch>
     </>
