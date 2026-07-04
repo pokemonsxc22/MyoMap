@@ -52,10 +52,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .insert({ user_identifier: userId, completed_date: todayStr });
 
   if (insertError && insertError.code !== "23505") {
-    if (insertError.code === "PGRST205") {
-      res.status(503).json({ error: "Streaks table not set up yet." });
+    // Return the raw Supabase error so callers can see exactly what failed.
+    const detail = `[${insertError.code ?? "?"}] ${insertError.message ?? "unknown error"}`;
+    if (insertError.code === "PGRST205" || insertError.message?.includes("does not exist")) {
+      res.status(503).json({
+        error: `Streaks table missing — run api/_lib/migrations.sql in Supabase SQL Editor. (${detail})`,
+        supabase_code: insertError.code,
+        supabase_message: insertError.message,
+      });
     } else {
-      res.status(500).json({ error: "Failed to save completion" });
+      res.status(500).json({
+        error: `Failed to save check-in: ${detail}`,
+        supabase_code: insertError.code,
+        supabase_message: insertError.message,
+      });
     }
     return;
   }
@@ -66,7 +76,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .eq("user_identifier", userId);
 
   if (fetchError) {
-    res.json({ streak: 1, totalCompletions: 1, completedToday: true });
+    // Non-fatal — insert succeeded; return a safe fallback streak.
+    res.json({
+      streak: 1,
+      totalCompletions: 1,
+      completedToday: true,
+      warning: `Insert succeeded but re-fetch failed: [${fetchError.code}] ${fetchError.message}`,
+    });
     return;
   }
 

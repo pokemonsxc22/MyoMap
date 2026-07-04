@@ -298,7 +298,7 @@ function StreakParticles({ color, count = 6 }: { color: string; count?: number }
 // ── Component ─────────────────────────────────────────────────────
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { userId, userName, loading: userLoading, signOut } = useUser();
+  const { user, userId, userName, loading: userLoading, signOut } = useUser();
   const { toast } = useToast();
 
   // Section B — Daily Check-In
@@ -496,16 +496,25 @@ export default function Dashboard() {
 
     try {
       // Always go through the API route — it uses the service-role key so it
-      // bypasses RLS and works even if the anon client can't write directly.
-      // Dev: Express api-server handles /api/streaks/complete
+      // bypasses RLS entirely.
+      // Dev:  Express api-server handles POST /api/streaks/complete
       // Prod: Vercel serverless function api/streaks/complete.ts handles it
+      //
+      // Explicitly send user.id (the Supabase auth UUID) so the serverless
+      // function stores the exact same identifier that auth.uid() would return.
+      const authId = user?.id ?? userId ?? "";
       const res = await fetch("/api/streaks/complete", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ userId }),
+        body:    JSON.stringify({ userId: authId }),
       });
 
-      const data = (await res.json()) as { streak?: number; error?: string };
+      const data = (await res.json()) as {
+        streak?: number;
+        error?: string;
+        supabase_code?: string;
+        supabase_message?: string;
+      };
 
       if (!res.ok) {
         // Revert the optimistic update — the write did not persist.
@@ -513,18 +522,17 @@ export default function Dashboard() {
         setCheckedDates((prev) => prev.filter((d) => d !== today));
         setStreak((s) => Math.max(0, s - 1));
 
+        // Build a description that includes the raw Supabase error so the
+        // user can see exactly what failed (table missing, RLS, etc.).
         const errMsg = data.error ?? "Check-in failed. Please try again.";
-        const isMissingTable =
-          errMsg.toLowerCase().includes("not set up") ||
-          errMsg.includes("PGRST205") ||
-          errMsg.includes("does not exist");
+        const rawDetail = data.supabase_message
+          ? ` (Supabase: ${data.supabase_message})`
+          : "";
 
         toast({
           variant: "destructive",
           title: "Check-in didn't save",
-          description: isMissingTable
-            ? "The streaks table is missing. Run api/_lib/migrations.sql in your Supabase SQL Editor, then try again."
-            : errMsg,
+          description: `${errMsg}${rawDetail}`,
         });
         return;
       }

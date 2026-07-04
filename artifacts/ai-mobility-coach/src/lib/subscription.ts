@@ -220,20 +220,33 @@ export async function applyDiscountCode(
 
   const { error } = await supabase.from("users").update(patch).eq("id", userId);
   if (error) {
-    // Full patch failed (discount columns may not exist yet — run migrations.sql).
-    // Fall back to plan-only update.
+    // Full patch failed (discount columns likely missing — run migrations.sql).
+    // Capture the raw Supabase error before the fallback attempt.
+    const firstErrDetail = `[${error.code ?? "?"}] ${error.message ?? "unknown"}`;
+
+    // Fall back to plan-only update using the same authenticated client.
     const { error: planError } = await supabase
       .from("users")
       .update({ plan: "pro_annual" satisfies Plan })
       .eq("id", userId);
+
     if (planError) {
-      const detail = planError.message ?? planError.code ?? "unknown";
-      const hint = error.message?.includes("column") || error.code === "PGRST205"
-        ? " The discount columns may be missing — run api/_lib/migrations.sql in your Supabase SQL Editor."
+      const fallbackDetail = `[${planError.code ?? "?"}] ${planError.message ?? "unknown"}`;
+      const isMissingColumn =
+        error.message?.toLowerCase().includes("column") ||
+        error.code === "PGRST205" ||
+        planError.code === "PGRST205";
+      const hint = isMissingColumn
+        ? " Run api/_lib/migrations.sql in your Supabase SQL Editor to add the missing columns."
         : "";
-      return { ok: false, error: `Failed to apply code: ${detail}.${hint}` };
+      return {
+        ok: false,
+        error: `Failed to apply code. First error: ${firstErrDetail}. Fallback error: ${fallbackDetail}.${hint}`,
+      };
     }
-    // Plan updated but discount columns missing — partial success.
+
+    // Plan-only update succeeded — discount metadata columns are just missing.
+    // Treat as partial success (plan was upgraded).
     return { ok: true };
   }
 
