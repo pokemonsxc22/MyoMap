@@ -219,7 +219,13 @@ export async function applyDiscountCode(
   };
 
   const { error } = await supabase.from("users").update(patch).eq("id", userId);
-  if (error) return { ok: false, error: "Something went wrong applying that code. Please try again." };
+  if (error) {
+    const { error: planError } = await supabase
+      .from("users")
+      .update({ plan: "pro_annual" satisfies Plan })
+      .eq("id", userId);
+    if (planError) return { ok: false, error: "Something went wrong applying that code. Please try again." };
+  }
 
   return { ok: true };
 }

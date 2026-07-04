@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, CreditCard, MessageCircle, ClipboardList, User as UserIcon,
-  Check, AlertTriangle, Loader2, Sparkles,
+  Check, AlertTriangle, Loader2, Sparkles, KeyRound,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
@@ -47,6 +47,25 @@ export default function Profile() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [pwResetSending, setPwResetSending] = useState(false);
+  const [pwResetSent, setPwResetSent] = useState(false);
+  const [pwResetError, setPwResetError] = useState<string | null>(null);
+
+  const handlePasswordReset = async () => {
+    if (!supabase || !userEmail || pwResetSending) return;
+    setPwResetSending(true);
+    setPwResetError(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      setPwResetError("Failed to send reset email. Please try again.");
+    } else {
+      setPwResetSent(true);
+    }
+    setPwResetSending(false);
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -266,6 +285,45 @@ export default function Profile() {
                 </li>
               ))}
             </ul>
+          )}
+        </motion.div>
+
+        {/* ── Security / Change Password ─────────────────────────── */}
+        <motion.div
+          initial="hidden" animate="visible" variants={fadeUp}
+          className="rounded-2xl border border-white/10 bg-white/[0.02] p-5"
+          data-testid="section-security"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <KeyRound className="w-4 h-4 text-teal-400" />
+            <h2 className="text-sm font-bold">Security</h2>
+          </div>
+          <p className="text-xs text-slate-400 mb-4">
+            Send a password reset link to <span className="text-slate-300 font-medium">{userEmail}</span>.
+          </p>
+
+          {pwResetSent ? (
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-teal-500/10 border border-teal-500/25">
+              <Check className="w-4 h-4 text-teal-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-teal-300 font-medium">
+                Password reset email sent — check your inbox.
+              </p>
+            </div>
+          ) : (
+            <>
+              {pwResetError && (
+                <p className="text-xs text-red-400 mb-3">{pwResetError}</p>
+              )}
+              <button
+                onClick={() => void handlePasswordReset()}
+                disabled={pwResetSending || !userEmail}
+                className="h-9 px-4 rounded-xl border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                data-testid="button-change-password"
+              >
+                {pwResetSending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {pwResetSending ? "Sending…" : "Send Password Reset Email"}
+              </button>
+            </>
           )}
         </motion.div>
 

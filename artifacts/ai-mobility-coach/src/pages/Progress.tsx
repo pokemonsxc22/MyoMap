@@ -131,7 +131,8 @@ export default function Progress() {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !userId) { setLogsLoading(false); return; }
+    if (!userId) return;
+    if (!supabase) { setLogsLoading(false); return; }
     void (async () => {
       try {
         const { data } = await supabase

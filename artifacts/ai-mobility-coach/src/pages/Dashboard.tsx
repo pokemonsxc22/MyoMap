@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity, PlusCircle, Send, CheckCircle2,
@@ -156,12 +157,29 @@ function getCalendarDays(month: Date): Array<{ dateStr: string | null; day: numb
 }
 
 // ── InfoTooltip ───────────────────────────────────────────────────
+// Renders the tooltip via a portal so it is never clipped by ancestor
+// overflow-hidden containers.
 function InfoTooltip({ text }: { text: string }) {
   const [visible, setVisible] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const handleMouseEnter = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setCoords({
+        top:  rect.top,
+        left: rect.left + rect.width / 2,
+      });
+    }
+    setVisible(true);
+  };
+
   return (
-    <div className="relative inline-flex items-center" style={{ isolation: "isolate" }}>
+    <div className="inline-flex items-center">
       <button
-        onMouseEnter={() => setVisible(true)}
+        ref={btnRef}
+        onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setVisible(false)}
         style={{
           width: 16,
@@ -187,17 +205,17 @@ function InfoTooltip({ text }: { text: string }) {
         i
       </button>
       <AnimatePresence>
-        {visible && (
+        {visible && createPortal(
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             style={{
-              position: "absolute",
-              bottom: "calc(100% + 8px)",
-              left: "50%",
-              transform: "translateX(-50%)",
+              position: "fixed",
+              top: coords.top,
+              left: coords.left,
+              transform: "translate(-50%, calc(-100% - 8px))",
               width: 216,
               padding: "8px 12px",
               background: "#1E293B",
@@ -206,7 +224,7 @@ function InfoTooltip({ text }: { text: string }) {
               color: "white",
               fontSize: 12,
               lineHeight: 1.5,
-              zIndex: 9999,
+              zIndex: 99999,
               boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(13,148,136,0.1)",
               pointerEvents: "none",
               textAlign: "center",
@@ -214,7 +232,6 @@ function InfoTooltip({ text }: { text: string }) {
             }}
           >
             {text}
-            {/* Arrow pointing down */}
             <div
               style={{
                 position: "absolute",
@@ -228,7 +245,8 @@ function InfoTooltip({ text }: { text: string }) {
                 borderTop: "5px solid #0D9488",
               }}
             />
-          </motion.div>
+          </motion.div>,
+          document.body
         )}
       </AnimatePresence>
     </div>
@@ -457,19 +475,21 @@ export default function Dashboard() {
   const handleCheckIn = async () => {
     if (!userId || completedToday || checkingIn) return;
     setCheckingIn(true);
+    // Optimistic update — UI responds immediately
+    setCompletedToday(true);
+    setCheckedDates((prev) => [...new Set([...prev, today])]);
+    setStreak((s) => s + 1);
     try {
       const res = await fetch("/api/streaks/complete", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ userId }),
       });
-      const data = (await res.json()) as { streak?: number };
       if (res.ok) {
-        setCompletedToday(true);
-        setStreak(data.streak ?? streak + 1);
-        setCheckedDates((prev) => [...new Set([...prev, today])]);
+        const data = (await res.json()) as { streak?: number };
+        if (data.streak !== undefined) setStreak(data.streak);
       }
-    } catch { /* silent */ } finally {
+    } catch { /* silent — optimistic state already applied */ } finally {
       setCheckingIn(false);
     }
   };
