@@ -220,11 +220,21 @@ export async function applyDiscountCode(
 
   const { error } = await supabase.from("users").update(patch).eq("id", userId);
   if (error) {
+    // Full patch failed (discount columns may not exist yet — run migrations.sql).
+    // Fall back to plan-only update.
     const { error: planError } = await supabase
       .from("users")
       .update({ plan: "pro_annual" satisfies Plan })
       .eq("id", userId);
-    if (planError) return { ok: false, error: "Something went wrong applying that code. Please try again." };
+    if (planError) {
+      const detail = planError.message ?? planError.code ?? "unknown";
+      const hint = error.message?.includes("column") || error.code === "PGRST205"
+        ? " The discount columns may be missing — run api/_lib/migrations.sql in your Supabase SQL Editor."
+        : "";
+      return { ok: false, error: `Failed to apply code: ${detail}.${hint}` };
+    }
+    // Plan updated but discount columns missing — partial success.
+    return { ok: true };
   }
 
   return { ok: true };

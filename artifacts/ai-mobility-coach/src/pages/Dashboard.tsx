@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 import {
   Activity, PlusCircle, Send, CheckCircle2,
   RefreshCcw, Flame, MessageCircle, LogOut,
@@ -298,6 +299,7 @@ function StreakParticles({ color, count = 6 }: { color: string; count?: number }
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { userId, userName, loading: userLoading, signOut } = useUser();
+  const { toast } = useToast();
 
   // Section B — Daily Check-In
   const [chatInput, setChatInput]     = useState("");
@@ -486,44 +488,57 @@ export default function Dashboard() {
   const handleCheckIn = async () => {
     if (!userId || completedToday || checkingIn) return;
     setCheckingIn(true);
+
     // Optimistic update so the UI responds immediately.
     setCompletedToday(true);
     setCheckedDates((prev) => [...new Set([...prev, today])]);
     setStreak((s) => s + 1);
+
     try {
-      if (supabase) {
-        // Write directly through the authenticated Supabase client so the
-        // user's JWT is attached and RLS policies are satisfied.
-        // 23505 = unique violation (already checked in today) — treat as success.
-        await supabase
-          .from("streaks")
-          .insert({ user_identifier: userId, completed_date: today })
-          .then(undefined, () => undefined);
+      // Always go through the API route — it uses the service-role key so it
+      // bypasses RLS and works even if the anon client can't write directly.
+      // Dev: Express api-server handles /api/streaks/complete
+      // Prod: Vercel serverless function api/streaks/complete.ts handles it
+      const res = await fetch("/api/streaks/complete", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ userId }),
+      });
 
-        // Re-fetch all dates to compute an accurate server-side streak.
-        const { data } = await supabase
-          .from("streaks")
-          .select("completed_date")
-          .eq("user_identifier", userId);
+      const data = (await res.json()) as { streak?: number; error?: string };
 
-        if (data && data.length > 0) {
-          const dates = data.map((r: { completed_date: string }) => r.completed_date);
-          setCheckedDates((prev) => [...new Set([...prev, ...dates])]);
-          setStreak(computeStreakFromDates(dates));
-        }
-      } else {
-        // No Supabase client — fall back to the API route.
-        const res = await fetch("/api/streaks/complete", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ userId }),
+      if (!res.ok) {
+        // Revert the optimistic update — the write did not persist.
+        setCompletedToday(false);
+        setCheckedDates((prev) => prev.filter((d) => d !== today));
+        setStreak((s) => Math.max(0, s - 1));
+
+        const errMsg = data.error ?? "Check-in failed. Please try again.";
+        const isMissingTable =
+          errMsg.toLowerCase().includes("not set up") ||
+          errMsg.includes("PGRST205") ||
+          errMsg.includes("does not exist");
+
+        toast({
+          variant: "destructive",
+          title: "Check-in didn't save",
+          description: isMissingTable
+            ? "The streaks table is missing. Run api/_lib/migrations.sql in your Supabase SQL Editor, then try again."
+            : errMsg,
         });
-        if (res.ok) {
-          const data = (await res.json()) as { streak?: number };
-          if (data.streak !== undefined) setStreak(data.streak);
-        }
+        return;
       }
-    } catch { /* silent — optimistic state already shown */ } finally {
+
+      // Update streak from server-computed value.
+      if (data.streak !== undefined) setStreak(data.streak);
+    } catch {
+      // Network failure — keep optimistic state visible but warn the user.
+      toast({
+        variant: "destructive",
+        title: "Check-in may not have saved",
+        description: "Couldn't reach the server. Check your connection and try again.",
+      });
+    } finally {
       setCheckingIn(false);
     }
   };
