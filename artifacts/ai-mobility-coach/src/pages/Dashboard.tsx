@@ -132,6 +132,24 @@ function formatDateRange(dates: string[]): string {
   return `${SHORT_MONTHS[start.getMonth()]} ${start.getDate()} – ${SHORT_MONTHS[end.getMonth()]} ${end.getDate()}`;
 }
 
+// Mirrors the server-side streak logic — works on sorted date strings YYYY-MM-DD.
+function computeStreakFromDates(dates: string[]): number {
+  if (dates.length === 0) return 0;
+  const today     = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const unique    = [...new Set(dates)].sort().reverse();
+  if (unique[0] !== today && unique[0] !== yesterday) return 0;
+  let streak = 1;
+  for (let i = 1; i < unique.length; i++) {
+    const diff = Math.round(
+      (new Date(unique[i - 1]).getTime() - new Date(unique[i]).getTime()) / 86_400_000
+    );
+    if (diff === 1) streak++;
+    else break;
+  }
+  return streak;
+}
+
 function getStreakConfig(streak: number) {
   if (streak >= 10) return { color: "#0D9488", glow: "rgba(13,148,136,0.65)", emoji: "⚡", label: "Legendary" };
   if (streak >= 7)  return { color: "#3B82F6", glow: "rgba(59,130,246,0.65)",  emoji: "💎", label: "Elite" };
@@ -157,20 +175,19 @@ function getCalendarDays(month: Date): Array<{ dateStr: string | null; day: numb
 }
 
 // ── InfoTooltip ───────────────────────────────────────────────────
-// Renders the tooltip via a portal so it is never clipped by ancestor
-// overflow-hidden containers.
+// Portals the tooltip into document.body so it is never clipped by
+// overflow-hidden ancestors. No AnimatePresence — portal children are
+// plain React elements and AnimatePresence cannot manage their exit
+// lifecycle reliably when they live outside its DOM subtree.
 function InfoTooltip({ text }: { text: string }) {
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const handleMouseEnter = () => {
+  const show = () => {
     if (btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setCoords({
-        top:  rect.top,
-        left: rect.left + rect.width / 2,
-      });
+      const r = btnRef.current.getBoundingClientRect();
+      setCoords({ top: r.top, left: r.left + r.width / 2 });
     }
     setVisible(true);
   };
@@ -179,7 +196,7 @@ function InfoTooltip({ text }: { text: string }) {
     <div className="inline-flex items-center">
       <button
         ref={btnRef}
-        onMouseEnter={handleMouseEnter}
+        onMouseEnter={show}
         onMouseLeave={() => setVisible(false)}
         style={{
           width: 16,
@@ -204,51 +221,45 @@ function InfoTooltip({ text }: { text: string }) {
       >
         i
       </button>
-      <AnimatePresence>
-        {visible && createPortal(
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+      {visible && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            top: coords.top,
+            left: coords.left,
+            transform: "translate(-50%, calc(-100% - 8px))",
+            width: 216,
+            padding: "8px 12px",
+            background: "#1E293B",
+            border: "1px solid #0D9488",
+            borderRadius: 8,
+            color: "white",
+            fontSize: 12,
+            lineHeight: 1.5,
+            zIndex: 99999,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(13,148,136,0.1)",
+            pointerEvents: "none",
+            textAlign: "center",
+            whiteSpace: "normal",
+          }}
+        >
+          {text}
+          <div
             style={{
-              position: "fixed",
-              top: coords.top,
-              left: coords.left,
-              transform: "translate(-50%, calc(-100% - 8px))",
-              width: 216,
-              padding: "8px 12px",
-              background: "#1E293B",
-              border: "1px solid #0D9488",
-              borderRadius: 8,
-              color: "white",
-              fontSize: 12,
-              lineHeight: 1.5,
-              zIndex: 99999,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(13,148,136,0.1)",
-              pointerEvents: "none",
-              textAlign: "center",
-              whiteSpace: "normal",
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "5px solid transparent",
+              borderRight: "5px solid transparent",
+              borderTop: "5px solid #0D9488",
             }}
-          >
-            {text}
-            <div
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 0,
-                height: 0,
-                borderLeft: "5px solid transparent",
-                borderRight: "5px solid transparent",
-                borderTop: "5px solid #0D9488",
-              }}
-            />
-          </motion.div>,
-          document.body
-        )}
-      </AnimatePresence>
+          />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -475,21 +486,44 @@ export default function Dashboard() {
   const handleCheckIn = async () => {
     if (!userId || completedToday || checkingIn) return;
     setCheckingIn(true);
-    // Optimistic update — UI responds immediately
+    // Optimistic update so the UI responds immediately.
     setCompletedToday(true);
     setCheckedDates((prev) => [...new Set([...prev, today])]);
     setStreak((s) => s + 1);
     try {
-      const res = await fetch("/api/streaks/complete", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ userId }),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { streak?: number };
-        if (data.streak !== undefined) setStreak(data.streak);
+      if (supabase) {
+        // Write directly through the authenticated Supabase client so the
+        // user's JWT is attached and RLS policies are satisfied.
+        // 23505 = unique violation (already checked in today) — treat as success.
+        await supabase
+          .from("streaks")
+          .insert({ user_identifier: userId, completed_date: today })
+          .then(undefined, () => undefined);
+
+        // Re-fetch all dates to compute an accurate server-side streak.
+        const { data } = await supabase
+          .from("streaks")
+          .select("completed_date")
+          .eq("user_identifier", userId);
+
+        if (data && data.length > 0) {
+          const dates = data.map((r: { completed_date: string }) => r.completed_date);
+          setCheckedDates((prev) => [...new Set([...prev, ...dates])]);
+          setStreak(computeStreakFromDates(dates));
+        }
+      } else {
+        // No Supabase client — fall back to the API route.
+        const res = await fetch("/api/streaks/complete", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ userId }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { streak?: number };
+          if (data.streak !== undefined) setStreak(data.streak);
+        }
       }
-    } catch { /* silent — optimistic state already applied */ } finally {
+    } catch { /* silent — optimistic state already shown */ } finally {
       setCheckingIn(false);
     }
   };
