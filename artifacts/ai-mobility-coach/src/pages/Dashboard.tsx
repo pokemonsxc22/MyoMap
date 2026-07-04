@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Activity, PlusCircle, Send, CheckCircle2,
-  RefreshCcw, Flame, MessageCircle, LogOut,
-  ChevronLeft, ChevronRight, X, Calendar as CalendarIcon,
-  User as UserIcon,
+  Activity, PlusCircle, Send,
+  RefreshCcw, MessageCircle, LogOut,
+  X, User as UserIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -17,6 +15,8 @@ import {
   getRateLimitCooldownSeconds, recordRateLimitedMessage,
 } from "@/lib/subscription";
 import PaywallModal from "@/components/PaywallModal";
+import InfoTooltip from "@/components/InfoTooltip";
+import MobilityScoreCard from "@/components/MobilityScoreCard";
 import { formatDistanceToNow } from "date-fns";
 import ReactMarkdown from "react-markdown";
 
@@ -51,9 +51,6 @@ const MUSCLE_GROUP_TO_SLUG: Record<string, string> = {
   hips:           "hips",
 };
 
-const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ── Types ─────────────────────────────────────────────────────────
 interface Exercise {
@@ -116,184 +113,7 @@ function parseExercisesFromRow(row: {
   return exercises;
 }
 
-function getWeekDateStrings(offset = 0): string[] {
-  const now = new Date();
-  const dow = now.getDay();
-  const daysFromMonday = dow === 0 ? 6 : dow - 1;
-  const monday = new Date(now.getTime() - (daysFromMonday + offset * 7) * 86_400_000);
-  return Array.from({ length: 7 }, (_, i) =>
-    new Date(monday.getTime() + i * 86_400_000).toISOString().slice(0, 10)
-  );
-}
 
-function formatDateRange(dates: string[]): string {
-  if (dates.length === 0) return "";
-  const start = new Date(dates[0] + "T12:00:00");
-  const end   = new Date(dates[dates.length - 1] + "T12:00:00");
-  return `${SHORT_MONTHS[start.getMonth()]} ${start.getDate()} – ${SHORT_MONTHS[end.getMonth()]} ${end.getDate()}`;
-}
-
-// Mirrors the server-side streak logic — works on sorted date strings YYYY-MM-DD.
-function computeStreakFromDates(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const today     = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-  const unique    = [...new Set(dates)].sort().reverse();
-  if (unique[0] !== today && unique[0] !== yesterday) return 0;
-  let streak = 1;
-  for (let i = 1; i < unique.length; i++) {
-    const diff = Math.round(
-      (new Date(unique[i - 1]).getTime() - new Date(unique[i]).getTime()) / 86_400_000
-    );
-    if (diff === 1) streak++;
-    else break;
-  }
-  return streak;
-}
-
-function getStreakConfig(streak: number) {
-  if (streak >= 10) return { color: "#0D9488", glow: "rgba(13,148,136,0.65)", emoji: "⚡", label: "Legendary" };
-  if (streak >= 7)  return { color: "#3B82F6", glow: "rgba(59,130,246,0.65)",  emoji: "💎", label: "Elite" };
-  if (streak >= 5)  return { color: "#8B5CF6", glow: "rgba(139,92,246,0.65)", emoji: "🚀", label: "On Fire" };
-  if (streak >= 3)  return { color: "#EF4444", glow: "rgba(239,68,68,0.65)",   emoji: "🔥", label: "Heating Up" };
-  return { color: "#0D9488", glow: "rgba(13,148,136,0.45)", emoji: "🔥", label: "" };
-}
-
-function getCalendarDays(month: Date): Array<{ dateStr: string | null; day: number }> {
-  const year = month.getFullYear();
-  const m    = month.getMonth();
-  const firstDay   = new Date(year, m, 1);
-  const lastDay    = new Date(year, m + 1, 0);
-  const startDow   = firstDay.getDay();
-  const offsetFromMon = startDow === 0 ? 6 : startDow - 1;
-  const days: Array<{ dateStr: string | null; day: number }> = [];
-  for (let i = 0; i < offsetFromMon; i++) days.push({ dateStr: null, day: 0 });
-  for (let d = 1; d <= lastDay.getDate(); d++) {
-    const dateStr = `${year}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    days.push({ dateStr, day: d });
-  }
-  return days;
-}
-
-// ── InfoTooltip ───────────────────────────────────────────────────
-// Portals the tooltip into document.body so it is never clipped by
-// overflow-hidden ancestors. No AnimatePresence — portal children are
-// plain React elements and AnimatePresence cannot manage their exit
-// lifecycle reliably when they live outside its DOM subtree.
-function InfoTooltip({ text }: { text: string }) {
-  const [visible, setVisible] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  const show = () => {
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setCoords({ top: r.top, left: r.left + r.width / 2 });
-    }
-    setVisible(true);
-  };
-
-  return (
-    <div className="inline-flex items-center">
-      <button
-        ref={btnRef}
-        onMouseEnter={show}
-        onMouseLeave={() => setVisible(false)}
-        style={{
-          width: 16,
-          height: 16,
-          borderRadius: "50%",
-          border: "1.5px solid white",
-          color: "white",
-          fontSize: 9,
-          fontWeight: 700,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          lineHeight: 1,
-          background: "transparent",
-          cursor: "default",
-          padding: 0,
-          transition: "box-shadow 0.2s",
-          boxShadow: visible ? "0 0 6px #0D9488, 0 0 12px rgba(13,148,136,0.4)" : "none",
-          flexShrink: 0,
-        }}
-        aria-label="More info"
-      >
-        i
-      </button>
-      {visible && createPortal(
-        <div
-          style={{
-            position: "fixed",
-            top: coords.top,
-            left: coords.left,
-            transform: "translate(-50%, calc(-100% - 8px))",
-            width: 216,
-            padding: "8px 12px",
-            background: "#1E293B",
-            border: "1px solid #0D9488",
-            borderRadius: 8,
-            color: "white",
-            fontSize: 12,
-            lineHeight: 1.5,
-            zIndex: 99999,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(13,148,136,0.1)",
-            pointerEvents: "none",
-            textAlign: "center",
-            whiteSpace: "normal",
-          }}
-        >
-          {text}
-          <div
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0,
-              height: 0,
-              borderLeft: "5px solid transparent",
-              borderRight: "5px solid transparent",
-              borderTop: "5px solid #0D9488",
-            }}
-          />
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
-// ── Streak Particle ───────────────────────────────────────────────
-function StreakParticles({ color, count = 6 }: { color: string; count?: number }) {
-  return (
-    <div className="absolute inset-0 pointer-events-none">
-      {Array.from({ length: count }, (_, i) => {
-        const angle = (i / count) * 360;
-        const radius = 28 + (i % 2) * 8;
-        const size   = 3 + (i % 3);
-        const delay  = i * 0.3;
-        const x = Math.cos((angle * Math.PI) / 180) * radius;
-        const y = Math.sin((angle * Math.PI) / 180) * radius;
-        return (
-          <motion.div
-            key={i}
-            style={{ backgroundColor: color, width: size, height: size, left: "50%", top: "50%", marginLeft: -size / 2, marginTop: -size / 2 }}
-            className="absolute rounded-full"
-            animate={{
-              x: [x * 0.7, x, x * 0.7],
-              y: [y * 0.7, y, y * 0.7],
-              opacity: [0.4, 0.9, 0.4],
-              scale: [0.8, 1.2, 0.8],
-            }}
-            transition={{ repeat: Infinity, duration: 2 + i * 0.3, delay, ease: "easeInOut" }}
-          />
-        );
-      })}
-    </div>
-  );
-}
 
 // ── Component ─────────────────────────────────────────────────────
 export default function Dashboard() {
@@ -315,15 +135,6 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, [rateLimitCooldown]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
-  // Section C — Streak
-  const [weekOffset, setWeekOffset]               = useState(0);
-  const [checkedDates, setCheckedDates]           = useState<string[]>([]);
-  const [streak, setStreak]                       = useState(0);
-  const [completedToday, setCompletedToday]       = useState(false);
-  const [checkingIn, setCheckingIn]               = useState(false);
-  const [calendarOpen, setCalendarOpen]           = useState(false);
-  const [calendarMonth, setCalendarMonth]         = useState(new Date());
 
   // Section D — Routines
   const [routineGroups, setRoutineGroups] = useState<RoutineGroup[]>([]);
@@ -348,15 +159,6 @@ export default function Dashboard() {
   // Load data once we have a userId
   useEffect(() => {
     if (!userId) return;
-
-    void fetch(`/api/streaks/${encodeURIComponent(userId)}/week`)
-      .then((r) => (r.ok ? r.json() : { dates: [], streak: 0, completedToday: false }))
-      .then((data: { dates: string[]; streak: number; completedToday: boolean }) => {
-        setCheckedDates(data.dates ?? []);
-        setStreak(data.streak ?? 0);
-        setCompletedToday(data.completedToday ?? false);
-      })
-      .catch(() => {});
 
     if (!supabase) { setLoadingData(false); return; }
 
@@ -397,12 +199,6 @@ export default function Dashboard() {
       }
     })();
   }, [userId]);
-
-  // Derived
-  const weekDates   = getWeekDateStrings(weekOffset);
-  const streakCfg   = getStreakConfig(streak);
-  const calendarDays = getCalendarDays(calendarMonth);
-  const today = new Date().toISOString().slice(0, 10);
 
   // ── Scroll chat to bottom ──────────────────────────────────────
   function scrollChatToBottom() {
@@ -485,71 +281,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleCheckIn = async () => {
-    if (!userId || completedToday || checkingIn) return;
-    setCheckingIn(true);
-
-    // Optimistic update so the UI responds immediately.
-    setCompletedToday(true);
-    setCheckedDates((prev) => [...new Set([...prev, today])]);
-    setStreak((s) => s + 1);
-
-    try {
-      // Always go through the API route — it uses the service-role key so it
-      // bypasses RLS entirely.
-      // Dev:  Express api-server handles POST /api/streaks/complete
-      // Prod: Vercel serverless function api/streaks/complete.ts handles it
-      //
-      // Explicitly send user.id (the Supabase auth UUID) so the serverless
-      // function stores the exact same identifier that auth.uid() would return.
-      const authId = user?.id ?? userId ?? "";
-      const res = await fetch("/api/streaks/complete", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ userId: authId }),
-      });
-
-      const data = (await res.json()) as {
-        streak?: number;
-        error?: string;
-        supabase_code?: string;
-        supabase_message?: string;
-      };
-
-      if (!res.ok) {
-        // Revert the optimistic update — the write did not persist.
-        setCompletedToday(false);
-        setCheckedDates((prev) => prev.filter((d) => d !== today));
-        setStreak((s) => Math.max(0, s - 1));
-
-        // Build a description that includes the raw Supabase error so the
-        // user can see exactly what failed (table missing, RLS, etc.).
-        const errMsg = data.error ?? "Check-in failed. Please try again.";
-        const rawDetail = data.supabase_message
-          ? ` (Supabase: ${data.supabase_message})`
-          : "";
-
-        toast({
-          variant: "destructive",
-          title: "Check-in didn't save",
-          description: `${errMsg}${rawDetail}`,
-        });
-        return;
-      }
-
-      // Update streak from server-computed value.
-      if (data.streak !== undefined) setStreak(data.streak);
-    } catch {
-      // Network failure — keep optimistic state visible but warn the user.
-      toast({
-        variant: "destructive",
-        title: "Check-in may not have saved",
-        description: "Couldn't reach the server. Check your connection and try again.",
-      });
-    } finally {
-      setCheckingIn(false);
-    }
-  };
 
   const dismissOnboarding = () => {
     localStorage.setItem("myomap_dashboard_seen", "true");
@@ -612,7 +343,7 @@ export default function Dashboard() {
                   { icon: "1", text: "Start an assessment to get your personalized corrective routine" },
                   { icon: "2", text: "Get your routine — exercises tailored to your exact body and pain" },
                   { icon: "3", text: "Use the AI chat to ask questions or update your exercises anytime" },
-                  { icon: "4", text: "Track your progress — log sessions and build daily streaks" },
+                  { icon: "4", text: "Track your progress — rate your mobility daily and watch your score trend over time" },
                 ].map((step) => (
                   <div key={step.icon} className="flex items-start gap-3">
                     <div className="flex-shrink-0 w-7 h-7 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center text-xs font-bold text-teal-400">
@@ -642,90 +373,6 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* ── Calendar Modal ─────────────────────────────────────────── */}
-      <AnimatePresence>
-        {calendarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
-            onClick={(e) => { if (e.target === e.currentTarget) setCalendarOpen(false); }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-sm rounded-3xl bg-[#111827]/95 border border-teal-500/20 backdrop-blur-xl p-6 shadow-[0_0_60px_-12px_rgba(13,148,136,0.35)]"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <button
-                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-                  className="w-8 h-8 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-400 hover:text-white transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <h3 className="font-bold text-sm">
-                  {MONTH_NAMES[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
-                </h3>
-                <button
-                  onClick={() => setCalendarMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-                  className="w-8 h-8 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-400 hover:text-white transition-all"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Day headers */}
-              <div className="grid grid-cols-7 mb-2">
-                {["M","T","W","T","F","S","S"].map((d, i) => (
-                  <div key={i} className="text-center text-[11px] font-bold text-slate-600 py-1">{d}</div>
-                ))}
-              </div>
-
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((cell, i) => {
-                  if (!cell.dateStr) return <div key={i} />;
-                  const isChecked = checkedDates.includes(cell.dateStr);
-                  const isToday   = cell.dateStr === today;
-                  return (
-                    <div
-                      key={i}
-                      className={`aspect-square flex items-center justify-center rounded-full text-xs font-semibold transition-all ${
-                        isChecked
-                          ? "text-white shadow-[0_0_12px_-2px_rgba(13,148,136,0.6)]"
-                          : isToday
-                          ? "border-2 border-teal-500 text-teal-400"
-                          : "text-slate-500 hover:text-slate-300"
-                      }`}
-                      style={isChecked ? { backgroundColor: streakCfg.color } : {}}
-                    >
-                      {cell.day}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Legend */}
-              <div className="mt-5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: streakCfg.color }} />
-                  Check-in day
-                </div>
-                <button
-                  onClick={() => setCalendarOpen(false)}
-                  className="px-4 py-1.5 rounded-xl bg-white/6 hover:bg-white/12 text-xs font-semibold text-slate-400 hover:text-white transition-all"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Nav */}
       <nav className="sticky top-0 w-full border-b border-teal-500/10 bg-[#0a0f1a]/80 backdrop-blur-xl z-50">
@@ -898,143 +545,11 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* ── Section C: Weekly Streak ───────────────────────────── */}
+        {/* ── Section C: Daily Mobility Score ────────────────────── */}
         <motion.div
           custom={2} initial="hidden" animate="visible" variants={sectionVariants}
-          className="rounded-2xl bg-[#111827]/80 border border-teal-500/15 p-5 backdrop-blur-sm hover:shadow-[0_0_24px_-8px_rgba(13,148,136,0.2)] transition-shadow"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4" style={{ color: streakCfg.color }} />
-              <h2 className="font-bold text-sm">Your Streak</h2>
-              <InfoTooltip text="Check in daily to build your streak and stay consistent with your routine." />
-            </div>
-            <button
-              onClick={() => { setCalendarMonth(new Date()); setCalendarOpen(true); }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-teal-400 transition-colors"
-            >
-              <CalendarIcon className="w-3.5 h-3.5" />
-              View Calendar
-            </button>
-          </div>
-
-          {/* Week navigation */}
-          <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={() => setWeekOffset(o => o + 1)}
-              className="w-7 h-7 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-500 hover:text-white transition-all"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-xs font-semibold text-slate-500">
-              {weekOffset === 0 ? "This week" : formatDateRange(weekDates)}
-            </span>
-            <button
-              onClick={() => setWeekOffset(o => Math.max(0, o - 1))}
-              disabled={weekOffset === 0}
-              className="w-7 h-7 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-slate-500 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Week dots */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={weekOffset}
-              initial={{ opacity: 0, x: weekOffset > 0 ? -20 : 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-center justify-between gap-1 mb-5"
-            >
-              {weekDates.map((date, i) => {
-                const isChecked = checkedDates.includes(date);
-                const isToday   = date === today;
-                const isFuture  = date > today;
-                return (
-                  <div key={date} className="flex flex-col items-center gap-1.5">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                        isChecked
-                          ? "text-white shadow-[0_0_14px_-2px_rgba(13,148,136,0.65)]"
-                          : isToday
-                          ? "bg-transparent border-2 text-teal-400"
-                          : isFuture
-                          ? "bg-white/3 text-slate-600"
-                          : "bg-white/5 text-slate-500"
-                      }`}
-                      style={
-                        isChecked
-                          ? { backgroundColor: streakCfg.color, boxShadow: `0 0 14px -2px ${streakCfg.glow}` }
-                          : isToday
-                          ? { borderColor: streakCfg.color, color: streakCfg.color }
-                          : {}
-                      }
-                    >
-                      {isChecked ? (
-                        <CheckCircle2 className="w-4 h-4" />
-                      ) : (
-                        <span className="text-xs font-bold">{DAY_LABELS[i]}</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          </AnimatePresence>
-
-          <div className="flex items-center justify-between gap-3">
-            {/* Streak count with particles */}
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                {streak >= 3 && (
-                  <StreakParticles color={streakCfg.color} />
-                )}
-                <motion.p
-                  className="text-sm font-semibold relative z-10"
-                  animate={{ textShadow: streak >= 3 ? `0 0 16px ${streakCfg.glow}` : "none" }}
-                >
-                  <span className="text-lg">{streakCfg.emoji}</span>{" "}
-                  <motion.span
-                    className="font-extrabold text-base"
-                    style={{ color: streak >= 3 ? streakCfg.color : undefined }}
-                    animate={streak >= 3 ? { scale: [1, 1.05, 1] } : {}}
-                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                  >
-                    {streak}
-                  </motion.span>
-                  <span className="text-slate-400 font-normal ml-1.5">day streak</span>
-                </motion.p>
-              </div>
-              {streak >= 3 && (
-                <span
-                  className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-                  style={{ color: streakCfg.color, borderColor: `${streakCfg.color}40`, backgroundColor: `${streakCfg.color}15` }}
-                >
-                  {streakCfg.label}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => void handleCheckIn()}
-              disabled={completedToday || checkingIn}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                completedToday
-                  ? "bg-white/5 text-slate-500 cursor-default border border-white/10"
-                  : "text-white hover:scale-[1.02]"
-              }`}
-              style={!completedToday ? {
-                backgroundColor: streakCfg.color,
-                boxShadow: `0 0 16px -4px ${streakCfg.glow}`,
-              } : {}}
-              data-testid="button-check-in"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {completedToday ? "Checked In Today ✓" : "Check In Today"}
-            </button>
-          </div>
+          <MobilityScoreCard />
         </motion.div>
 
         {/* ── Section D: My Routines ─────────────────────────────── */}
