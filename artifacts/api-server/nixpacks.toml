@@ -2,7 +2,7 @@
 cmds = ["npm install -g pnpm && pnpm install --no-frozen-lockfile"]
 
 [phases.build]
-cmds = ["pnpm run build"]
+cmds = ["pnpm --filter @workspace/api-server build"]
 
 [start]
-cmd = "node --enable-source-maps ./dist/index.mjs"
+cmd = "node --enable-source-maps ./artifacts/api-server/dist/index.mjs"
