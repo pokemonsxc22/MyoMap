@@ -57,8 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     client.from("streaks").select("completed_date").eq("user_identifier", userId),
   ]);
 
-  const weekDates = (weekRes.data ?? []).map(r => r.completed_date as string);
-  const allDates  = (allRes.data  ?? []).map(r => r.completed_date as string);
+  const weekDates = (weekRes.data ?? []).map((r: { completed_date: string }) => r.completed_date);
+  const allDates  = (allRes.data  ?? []).map((r: { completed_date: string }) => r.completed_date);
 
   res.json({
     dates:          weekDates,
