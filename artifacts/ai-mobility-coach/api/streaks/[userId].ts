@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getSupabaseClient } from "../_lib/supabase";
+import { getSupabaseClient } from "../_lib/supabase.js";
 
 function todayUTC(): string {
   return new Date().toISOString().slice(0, 10);

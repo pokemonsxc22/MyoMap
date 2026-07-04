@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sanitizeText, sanitizeStringArray } from "./_lib/sanitize";
-import { saveAssessment } from "./_lib/supabase";
-import { callGroq } from "./_lib/groq";
+import { sanitizeText, sanitizeStringArray } from "./_lib/sanitize.js";
+import { saveAssessment } from "./_lib/supabase.js";
+import { callGroq } from "./_lib/groq.js";
 
 const LABELS: Record<string, string> = {
   "lower-back": "lower back", "mid-back": "mid back", "upper-back": "upper back",

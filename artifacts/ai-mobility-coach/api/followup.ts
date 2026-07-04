@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sanitizeText } from "./_lib/sanitize";
-import { callGroq } from "./_lib/groq";
+import { sanitizeText } from "./_lib/sanitize.js";
+import { callGroq } from "./_lib/groq.js";
 
 interface ChatMessage {
   role: "user" | "assistant";

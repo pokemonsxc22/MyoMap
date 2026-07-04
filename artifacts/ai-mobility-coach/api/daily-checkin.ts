@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sanitizeText } from "./_lib/sanitize";
-import { callGroq } from "./_lib/groq";
+import { sanitizeText } from "./_lib/sanitize.js";
+import { callGroq } from "./_lib/groq.js";
 
 const SYSTEM_PROMPT = `You are Myomap's daily check-in assistant. The user will describe how their body feels today or what happened during their workout or activity. Listen carefully and ask one clarifying question if needed. When you have enough information to suggest routine changes, append a JSON block at the very end of your response on its own line in this exact format (no markdown fences, raw JSON only):
 {"update_routine": {"muscle_group": "lower_back", "changes": "brief description of what changed and why", "new_exercises": [{"name":"Exercise Name","sets":3,"reps":10,"notes":"Brief instructions"}]}}
