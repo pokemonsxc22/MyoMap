@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const dates = (data ?? []).map(row => row.completed_date as string);
+  const dates = (data ?? []).map((row: any) => row.completed_date as string);
   res.json({
     streak:           computeStreak(dates),
     totalCompletions: dates.length,
