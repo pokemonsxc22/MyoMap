@@ -617,60 +617,6 @@ export default function Results() {
             </motion.div>
           )}
 
-          {/* ── Streak Card ── */}
-          {!isPlaceholder && (
-            <motion.div variants={fadeUp} className="mb-8">
-              <div className="p-5 rounded-2xl bg-[#111827]/80 border border-teal-500/15 backdrop-blur-sm flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-[0_0_20px_-8px_rgba(13,148,136,0.2)] transition-shadow">
-                {/* Streak info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1 mb-1">
-                    <span className="text-2xl font-black tracking-tight" data-testid="streak-count">
-                      {streakData != null ? `🔥 ${streakData.streak ?? 0}` : "🔥 0"}
-                    </span>
-                    <span className="text-sm font-semibold text-muted-foreground">day streak</span>
-                    {streakData != null && (streakData.totalCompletions ?? 0) > 0 && (
-                      <span className="text-xs text-muted-foreground pl-2 border-l border-border/50" data-testid="total-completions">
-                        {streakData.totalCompletions} total
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground" data-testid="streak-message">
-                    {streakData != null
-                      ? streakMessage(streakData.streak ?? 0)
-                      : "Complete your first routine to start your streak."}
-                  </p>
-                </div>
-
-                {/* CTA */}
-                <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                  {streakData?.completedToday ? (
-                    <div
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-semibold"
-                      data-testid="completed-today-badge"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Completed today
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={() => void handleMarkComplete()}
-                      disabled={markingComplete}
-                      className="bg-teal-600 hover:bg-teal-500 text-white border-0 shadow-[0_0_20px_-5px_rgba(13,148,136,0.5)] hover:scale-[1.02] transition-all whitespace-nowrap font-bold"
-                      data-testid="button-mark-complete"
-                    >
-                      {markingComplete ? "Saving..." : "Mark Today Complete"}
-                    </Button>
-                  )}
-                  {streakError && (
-                    <p className="text-xs text-destructive text-right max-w-[180px]" data-testid="streak-error">
-                      {streakError}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           {/* What's Happening in Your Body */}
           <motion.div variants={fadeUp} className="mb-8">
             <h2 className="text-xs font-bold text-teal-500 tracking-widest uppercase mb-3">
