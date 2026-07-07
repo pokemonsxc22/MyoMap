@@ -406,8 +406,8 @@ export default function Landing() {
             © {new Date().getFullYear()} MyoMap. All rights reserved.
           </p>
           <div className="flex items-center gap-5 text-xs text-slate-600">
-            <button className="hover:text-slate-400 transition-colors">Terms of Service</button>
-            <button className="hover:text-slate-400 transition-colors">Privacy Policy</button>
+            <a href="/terms" className="hover:text-slate-400 transition-colors">Terms of Service</a>
+            <a href="/privacy" className="hover:text-slate-400 transition-colors">Privacy Policy</a>
           </div>
         </div>
       </footer>
