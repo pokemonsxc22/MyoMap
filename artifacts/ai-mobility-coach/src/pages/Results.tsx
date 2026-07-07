@@ -6,11 +6,7 @@ import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
-import {
-  checkAiChatAccess, incrementAiMessageCount, hasUnlimitedAiChat,
-  getRateLimitCooldownSeconds, recordRateLimitedMessage, showsAds,
-} from "@/lib/subscription";
-import PaywallModal from "@/components/PaywallModal";
+import { incrementAiMessageCount, showsAds } from "@/lib/subscription";
 import AdBanner from "@/components/AdBanner";
 
 const fadeUp = {
@@ -171,18 +167,6 @@ const TIME_SLOTS = [
   },
 ];
 
-interface StreakData {
-  streak: number;
-  totalCompletions: number;
-  completedToday: boolean;
-}
-
-function streakMessage(streak: number): string {
-  if (streak >= 7) return "Unstoppable! Your body is thanking you.";
-  if (streak >= 3) return "You're building a habit!";
-  return "Great start! Keep it going.";
-}
-
 export default function Results() {
   const [, setLocation] = useLocation();
   const [parsed, setParsed] = useState<ParsedRoutine | null>(null);
@@ -202,13 +186,8 @@ export default function Results() {
   const [instructionLoading, setInstructionLoading] = useState<string | null>(null);
   const [showResultsOnboarding, setShowResultsOnboarding] = useState(false);
 
-  // ── Streak tracking ────────────────────────────────────────────────────────
   const { userId: authUserId, plan } = useUser();
   const userId = authUserId ?? "";
-  const [streakData, setStreakData] = useState<StreakData | null>(null);
-  const [markingComplete, setMarkingComplete] = useState(false);
-  const [streakError, setStreakError] = useState<string | null>(null);
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
   const [adWatched, setAdWatched] = useState(false);
 
@@ -218,50 +197,9 @@ export default function Results() {
     return () => clearTimeout(t);
   }, [rateLimitCooldown]);
 
-  const handleMarkComplete = async () => {
-    setMarkingComplete(true);
-    setStreakError(null);
-    try {
-      const res = await fetch("/api/streaks/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      const body = (await res.json()) as StreakData & { error?: string };
-      if (!res.ok) {
-        setStreakError(body.error ?? "Could not save — please try again.");
-        return;
-      }
-      // Only update state when the response has a valid shape
-      if (typeof body.streak === "number") {
-        setStreakData(body);
-      }
-    } catch {
-      setStreakError("Network error — please try again.");
-    } finally {
-      setMarkingComplete(false);
-    }
-  };
-
   const handleFollowup = async () => {
     const question = chatInput.trim();
     if (!question || chatLoading || !userId) return;
-
-    const access = await checkAiChatAccess(userId);
-    if (access.reason === "no_access") { setPaywallOpen(true); return; }
-    if (access.reason === "daily_limit") {
-      setChatError("You've used all 20 AI messages today. Upgrade to Pro Unlimited for unlimited chat.");
-      return;
-    }
-    if (hasUnlimitedAiChat(access.plan)) {
-      const cooldown = getRateLimitCooldownSeconds();
-      if (cooldown > 0) {
-        setRateLimitCooldown(cooldown);
-        setChatError(`You're sending messages too quickly. Please wait ${cooldown}s.`);
-        return;
-      }
-      recordRateLimitedMessage();
-    }
 
     setChatInput("");
     setChatLoading(true);
@@ -349,13 +287,6 @@ export default function Results() {
   }, []);
 
   useEffect(() => {
-    fetch(`/api/streaks/${encodeURIComponent(userId)}`)
-      .then((r) => (r.ok ? r.json() : { streak: 0, totalCompletions: 0, completedToday: false }))
-      .then((data) => setStreakData(data as StreakData))
-      .catch(() => setStreakData({ streak: 0, totalCompletions: 0, completedToday: false }));
-  }, [userId]);
-
-  useEffect(() => {
     if (localStorage.getItem("myomap_results_seen")) return;
     const t = setTimeout(() => setShowResultsOnboarding(true), 900);
     return () => clearTimeout(t);
@@ -394,7 +325,6 @@ export default function Results() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground">
-      <PaywallModal open={paywallOpen} reason="ai_chat" onClose={() => setPaywallOpen(false)} />
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="fixed top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/10 blur-[160px]" />
         <div className="fixed bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />

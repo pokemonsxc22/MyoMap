@@ -19,6 +19,8 @@ import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import OnboardingPlan from "@/pages/OnboardingPlan";
 import NotFound from "@/pages/not-found";
+import TermsOfService from "@/pages/TermsOfService";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +120,8 @@ function Router() {
         <Route path="/retake"          component={() => <PrivateRoute component={Retake} />} />
         <Route path="/progress"        component={() => <PrivateRoute component={Progress} />} />
         <Route path="/profile"         component={() => <PrivateRoute component={Profile} />} />
+        <Route path="/terms"           component={TermsOfService} />
+        <Route path="/privacy"         component={PrivacyPolicy} />
         <Route component={NotFound} />
       </Switch>
     </>

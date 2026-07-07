@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Link } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Brain, Dumbbell, TrendingUp, ChevronRight, ArrowRight,
@@ -405,9 +406,9 @@ export default function Landing() {
           <p className="text-sm text-slate-600 order-last md:order-none">
             © {new Date().getFullYear()} MyoMap. All rights reserved.
           </p>
-          <div className="flex items-center gap-5 text-xs text-slate-600">
-            <a href="/terms" className="hover:text-slate-400 transition-colors">Terms of Service</a>
-            <a href="/privacy" className="hover:text-slate-400 transition-colors">Privacy Policy</a>
+          <div style={{ marginTop: 8, textAlign: "center" }} className="flex items-center gap-5">
+            <Link href="/terms" style={{ fontSize: 12, color: "#6b7280", textDecoration: "underline" }}>Terms of Service</Link>
+            <Link href="/privacy" style={{ fontSize: 12, color: "#6b7280", textDecoration: "underline" }}>Privacy Policy</Link>
           </div>
         </div>
       </footer>

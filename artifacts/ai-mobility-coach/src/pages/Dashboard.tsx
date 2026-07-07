@@ -10,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  checkAiChatAccess, incrementAiMessageCount, hasUnlimitedAiChat,
-  getRateLimitCooldownSeconds, recordRateLimitedMessage,
-} from "@/lib/subscription";
-import PaywallModal from "@/components/PaywallModal";
+import { incrementAiMessageCount } from "@/lib/subscription";
 import InfoTooltip from "@/components/InfoTooltip";
 import MobilityScoreCard from "@/components/MobilityScoreCard";
 import { formatDistanceToNow } from "date-fns";
@@ -126,7 +122,6 @@ export default function Dashboard() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError]     = useState<string | null>(null);
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
 
   useEffect(() => {
@@ -212,22 +207,6 @@ export default function Dashboard() {
     const msg = chatInput.trim();
     if (!msg || chatLoading || !userId) return;
 
-    const access = await checkAiChatAccess(userId);
-    if (access.reason === "no_access") { setPaywallOpen(true); return; }
-    if (access.reason === "daily_limit") {
-      setChatError("You've used all 20 AI messages today. Upgrade to Pro Unlimited for unlimited chat.");
-      return;
-    }
-    if (hasUnlimitedAiChat(access.plan)) {
-      const cooldown = getRateLimitCooldownSeconds();
-      if (cooldown > 0) {
-        setRateLimitCooldown(cooldown);
-        setChatError(`You're sending messages too quickly. Please wait ${cooldown}s.`);
-        return;
-      }
-      recordRateLimitedMessage();
-    }
-
     setChatInput("");
     setChatLoading(true);
     setChatError(null);
@@ -299,7 +278,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground">
-      <PaywallModal open={paywallOpen} reason="ai_chat" onClose={() => setPaywallOpen(false)} />
       {/* Animated glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-600/10 blur-[160px] rounded-full" />
