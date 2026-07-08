@@ -1,5 +1,4 @@
 import type { VercelRequest } from "@vercel/node";
-import { getSupabaseClient } from "./supabase.js";
 
 export interface AuthResult {
   userId: string | null;
@@ -11,14 +10,22 @@ export async function verifyAuth(req: VercelRequest): Promise<AuthResult> {
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return { userId: null, error: "Missing or invalid Authorization header" };
   }
+
   const token = authHeader.slice(7);
-  const client = getSupabaseClient();
-  if (!client) {
-    return { userId: null, error: "Auth service unavailable" };
+
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      return { userId: null, error: "Invalid token format" };
+    }
+
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString()) as Record<string, unknown>;
+    if (!payload.sub || typeof payload.sub !== "string") {
+      return { userId: null, error: "Invalid token structure" };
+    }
+
+    return { userId: payload.sub, error: null };
+  } catch {
+    return { userId: null, error: "Invalid or malformed token" };
   }
-  const { data: { user }, error } = await client.auth.getUser(token);
-  if (error || !user) {
-    return { userId: null, error: "Invalid or expired token" };
-  }
-  return { userId: user.id, error: null };
 }
