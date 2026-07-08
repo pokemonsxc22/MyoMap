@@ -10,11 +10,7 @@ import { useLocation } from "wouter";
 import { type ComparisonResult } from "@/lib/movementScreen";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
-import {
-  checkAiChatAccess, incrementAiMessageCount, hasUnlimitedAiChat,
-  getRateLimitCooldownSeconds, recordRateLimitedMessage,
-} from "@/lib/subscription";
-import PaywallModal from "@/components/PaywallModal";
+import { incrementAiMessageCount } from "@/lib/subscription";
 import ReactMarkdown from "react-markdown";
 
 const fadeInUp = {
@@ -112,7 +108,6 @@ export default function Progress() {
   const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [chatLoading,  setChatLoading]  = useState(false);
   const [chatError,    setChatError]    = useState<string | null>(null);
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
 
   useEffect(() => {
@@ -184,22 +179,6 @@ export default function Progress() {
     const question = chatInput.trim();
     if (!question || chatLoading || !userId) return;
 
-    const access = await checkAiChatAccess(userId);
-    if (access.reason === "no_access") { setPaywallOpen(true); return; }
-    if (access.reason === "daily_limit") {
-      setChatError("You've used all 20 AI messages today. Upgrade to Pro Unlimited for unlimited chat.");
-      return;
-    }
-    if (hasUnlimitedAiChat(access.plan)) {
-      const cooldown = getRateLimitCooldownSeconds();
-      if (cooldown > 0) {
-        setRateLimitCooldown(cooldown);
-        setChatError(`You're sending messages too quickly. Please wait ${cooldown}s.`);
-        return;
-      }
-      recordRateLimitedMessage();
-    }
-
     setChatInput("");
     setChatLoading(true);
     setChatError(null);
@@ -236,7 +215,6 @@ export default function Progress() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground relative">
-      <PaywallModal open={paywallOpen} reason="ai_chat" onClose={() => setPaywallOpen(false)} />
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/10 blur-[160px]" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/8 blur-[140px]" />

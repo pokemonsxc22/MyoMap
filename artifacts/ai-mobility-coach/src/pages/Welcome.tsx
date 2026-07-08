@@ -211,6 +211,18 @@ export default function Welcome() {
                 </button>
               </form>
 
+              <p className="text-center text-xs text-slate-500 mt-4">
+                By signing up, you agree to our{" "}
+                <a href="/terms" className="text-teal-400 hover:text-teal-300 underline transition-colors">
+                  Terms of Service
+                </a>
+                {" "}and{" "}
+                <a href="/privacy" className="text-teal-400 hover:text-teal-300 underline transition-colors">
+                  Privacy Policy
+                </a>
+                .
+              </p>
+
               <p className="text-center text-xs text-slate-500 mt-6">
                 Already have an account?{" "}
                 <button

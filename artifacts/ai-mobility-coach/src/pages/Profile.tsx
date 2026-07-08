@@ -1,19 +1,14 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, CreditCard, MessageCircle, ClipboardList, User as UserIcon,
-  Check, AlertTriangle, Loader2, Sparkles, KeyRound,
+  ArrowLeft, MessageCircle, ClipboardList, User as UserIcon,
+  Check, AlertTriangle, Loader2, KeyRound,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
-import {
-  PLAN_DETAILS, getUsageData, hasUnlimitedAssessments, hasUnlimitedAiChat,
-  hasAiChatAccess, FREE_ASSESSMENTS_PER_DAY, PRO_MONTHLY_AI_MESSAGES_PER_DAY,
-  type Plan,
-} from "@/lib/subscription";
-import PaywallModal from "@/components/PaywallModal";
+import { getUsageData } from "@/lib/subscription";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -28,7 +23,6 @@ interface AssessmentHistoryRow {
 }
 
 interface UsageState {
-  plan: Plan;
   assessmentsToday: number;
   aiMessagesToday: number;
 }
@@ -41,7 +35,6 @@ export default function Profile() {
   const [usage, setUsage] = useState<UsageState | null>(null);
   const [history, setHistory] = useState<AssessmentHistoryRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -71,9 +64,8 @@ export default function Profile() {
     if (!userId) return;
     void getUsageData(userId).then((data) => {
       setUsage({
-        plan: data.plan,
         assessmentsToday: data.assessments_today,
-        aiMessagesToday: data.ai_messages_today,
+        aiMessagesToday:  data.ai_messages_today,
       });
     });
   }, [userId]);
@@ -108,13 +100,10 @@ export default function Profile() {
     }
   };
 
-  const plan = usage?.plan ?? "free";
-  const planInfo = PLAN_DETAILS[plan];
   const displayName = userName ?? userEmail ?? "there";
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground">
-      <PaywallModal open={paywallOpen} onClose={() => setPaywallOpen(false)} />
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-600/10 blur-[160px] rounded-full" />
         <div className="fixed bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-teal-500/8 blur-[140px] rounded-full" />
@@ -144,50 +133,6 @@ export default function Profile() {
           </div>
         </motion.div>
 
-        {/* ── Plan & Billing ─────────────────────────────────────── */}
-        <motion.div
-          initial="hidden" animate="visible" variants={fadeUp}
-          className="rounded-2xl border border-white/10 bg-white/[0.02] p-5"
-          data-testid="section-plan-billing"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <CreditCard className="w-4 h-4 text-teal-400" />
-            <h2 className="text-sm font-bold">Plan &amp; Billing</h2>
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/10 p-4 mb-4">
-            <div>
-              <p className="text-base font-extrabold">{planInfo.name}</p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {planInfo.price}{planInfo.period}
-              </p>
-            </div>
-            {planInfo.bestValue && (
-              <span className="text-[10px] font-bold uppercase tracking-wide bg-teal-500 text-white px-2.5 py-1 rounded-full">
-                Best Value
-              </span>
-            )}
-          </div>
-
-          <ul className="space-y-1.5 mb-4">
-            {planInfo.benefits.map((b) => (
-              <li key={b} className="flex items-start gap-2 text-xs text-slate-300">
-                <Check className="w-3.5 h-3.5 text-teal-500 mt-0.5 shrink-0" />
-                {b}
-              </li>
-            ))}
-          </ul>
-
-          <button
-            onClick={() => setPaywallOpen(true)}
-            className="w-full h-10 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-[0_0_24px_-6px_rgba(13,148,136,0.5)]"
-            data-testid="button-manage-plan"
-          >
-            <Sparkles className="w-4 h-4" />
-            {plan === "free" ? "Upgrade Plan" : "Manage Plan"}
-          </button>
-        </motion.div>
-
         {/* ── AI Usage ───────────────────────────────────────────── */}
         <motion.div
           initial="hidden" animate="visible" variants={fadeUp}
@@ -196,7 +141,7 @@ export default function Profile() {
         >
           <div className="flex items-center gap-2 mb-4">
             <MessageCircle className="w-4 h-4 text-teal-400" />
-            <h2 className="text-sm font-bold">AI Usage</h2>
+            <h2 className="text-sm font-bold">Today's Activity</h2>
           </div>
 
           {!usage ? (
@@ -204,44 +149,14 @@ export default function Profile() {
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading usage…
             </div>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-slate-400">Assessments today</span>
-                  <span className="font-bold text-foreground">
-                    {usage.assessmentsToday}
-                    {hasUnlimitedAssessments(usage.plan) ? " / Unlimited" : ` / ${FREE_ASSESSMENTS_PER_DAY}`}
-                  </span>
-                </div>
-                {!hasUnlimitedAssessments(usage.plan) && (
-                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                    <div
-                      className="h-full bg-teal-500"
-                      style={{ width: `${Math.min(100, (usage.assessmentsToday / FREE_ASSESSMENTS_PER_DAY) * 100)}%` }}
-                    />
-                  </div>
-                )}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Assessments today</span>
+                <span className="font-bold text-foreground">{usage.assessmentsToday}</span>
               </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-slate-400">AI chat messages today</span>
-                  <span className="font-bold text-foreground">
-                    {!hasAiChatAccess(usage.plan)
-                      ? "Not available"
-                      : hasUnlimitedAiChat(usage.plan)
-                        ? `${usage.aiMessagesToday} / Unlimited`
-                        : `${usage.aiMessagesToday} / ${PRO_MONTHLY_AI_MESSAGES_PER_DAY}`}
-                  </span>
-                </div>
-                {hasAiChatAccess(usage.plan) && !hasUnlimitedAiChat(usage.plan) && (
-                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                    <div
-                      className="h-full bg-teal-500"
-                      style={{ width: `${Math.min(100, (usage.aiMessagesToday / PRO_MONTHLY_AI_MESSAGES_PER_DAY) * 100)}%` }}
-                    />
-                  </div>
-                )}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">AI messages today</span>
+                <span className="font-bold text-foreground">{usage.aiMessagesToday}</span>
               </div>
             </div>
           )}

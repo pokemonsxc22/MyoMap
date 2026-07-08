@@ -6,8 +6,7 @@ import { useLocation } from "wouter";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
-import { incrementAiMessageCount, showsAds } from "@/lib/subscription";
-import AdBanner from "@/components/AdBanner";
+import { incrementAiMessageCount } from "@/lib/subscription";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -186,10 +185,9 @@ export default function Results() {
   const [instructionLoading, setInstructionLoading] = useState<string | null>(null);
   const [showResultsOnboarding, setShowResultsOnboarding] = useState(false);
 
-  const { userId: authUserId, plan } = useUser();
+  const { userId: authUserId } = useUser();
   const userId = authUserId ?? "";
   const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
-  const [adWatched, setAdWatched] = useState(false);
 
   useEffect(() => {
     if (rateLimitCooldown <= 0) return;
@@ -314,14 +312,6 @@ export default function Results() {
   };
 
   if (!parsed) return null;
-
-  if (showsAds(plan) && !isPlaceholder && !adWatched) {
-    return (
-      <div className="min-h-screen bg-[#0a0f1a] text-foreground flex items-center justify-center px-4">
-        <AdBanner onComplete={() => setAdWatched(true)} />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground">

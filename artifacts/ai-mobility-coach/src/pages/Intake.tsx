@@ -6,8 +6,7 @@ import { useLocation } from "wouter";
 import { SCREEN_QUESTIONS } from "@/lib/movementScreen";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
-import { checkAssessmentLimit, incrementAssessmentCount } from "@/lib/subscription";
-import PaywallModal from "@/components/PaywallModal";
+import { incrementAssessmentCount } from "@/lib/subscription";
 
 const cardVariants = {
   hidden:  { opacity: 0, y: 24 },
@@ -32,8 +31,6 @@ export default function Intake() {
   const { userId, loading: userLoading } = useUser();
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
-  const [paywallOpen, setPaywallOpen] = useState(false);
-  const [checkingLimit, setCheckingLimit] = useState(true);
 
   const [sessionId] = useState<string>(() => {
     const existing = sessionStorage.getItem("mobilitySessionId");
@@ -61,14 +58,6 @@ export default function Intake() {
   useEffect(() => {
     if (!userLoading && !userId) setLocation("/welcome");
   }, [userId, userLoading, setLocation]);
-
-  useEffect(() => {
-    if (userLoading || !userId) return;
-    checkAssessmentLimit(userId).then(({ allowed }) => {
-      setCheckingLimit(false);
-      if (!allowed) setPaywallOpen(true);
-    });
-  }, [userId, userLoading]);
 
   const handleCheckbox = (value: string) => {
     setForm((prev) => ({
@@ -99,12 +88,6 @@ export default function Intake() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
-
-    const { allowed } = await checkAssessmentLimit(userId);
-    if (!allowed) {
-      setPaywallOpen(true);
-      return;
-    }
 
     setLoading(true);
     setError(null);
@@ -221,11 +204,6 @@ export default function Intake() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-foreground relative">
-      <PaywallModal
-        open={paywallOpen}
-        reason="assessments"
-        onClose={() => { setPaywallOpen(false); setLocation("/dashboard"); }}
-      />
       {/* Animated background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-teal-600/10 blur-[160px]" />

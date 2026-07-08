@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { User } from "@supabase/supabase-js";
-import { getUsageData, markOnboardingComplete, type Plan } from "@/lib/subscription";
+import { getUsageData, markOnboardingComplete } from "@/lib/subscription";
 
 export const USER_NAME_KEY = "myomap_user_name";
 
@@ -10,11 +10,9 @@ interface UserCtx {
   userId:    string | null;
   userName:  string | null;
   userEmail: string | null;
-  plan:      Plan;
   onboardingComplete: boolean | null;
   loading:   boolean;
   signOut:   () => Promise<void>;
-  refreshPlan: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
 }
 
@@ -23,11 +21,9 @@ const UserContext = createContext<UserCtx>({
   userId:    null,
   userName:  null,
   userEmail: null,
-  plan:      "free",
   onboardingComplete: null,
   loading:   true,
   signOut:   async () => {},
-  refreshPlan: async () => {},
   completeOnboarding: async () => {},
 });
 
@@ -71,13 +67,11 @@ async function resolveUserName(authUser: User): Promise<string> {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser]         = useState<User | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-  const [plan, setPlan]         = useState<Plan>("free");
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const [loading, setLoading]   = useState(true);
 
-  const loadPlan = async (userId: string) => {
+  const loadOnboarding = async (userId: string) => {
     const usage = await getUsageData(userId);
-    setPlan(usage.plan);
     setOnboardingComplete(usage.onboarding_complete);
   };
 
@@ -89,7 +83,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setUser(authUser);
       if (authUser) {
         setUserName(await resolveUserName(authUser));
-        void loadPlan(authUser.id);
+        void loadOnboarding(authUser.id);
       }
       setLoading(false);
     });
@@ -100,14 +94,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       if (!authUser) {
         setUserName(null);
-        setPlan("free");
         setOnboardingComplete(null);
         return;
       }
 
       if (event === "SIGNED_IN") {
         void resolveUserName(authUser).then(setUserName);
-        void loadPlan(authUser.id);
+        void loadOnboarding(authUser.id);
       } else {
         setUserName(localStorage.getItem(USER_NAME_KEY) ?? authUser.email ?? null);
       }
@@ -121,12 +114,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_NAME_KEY);
     setUser(null);
     setUserName(null);
-    setPlan("free");
     setOnboardingComplete(null);
-  };
-
-  const refreshPlan = async () => {
-    if (user) await loadPlan(user.id);
   };
 
   // Marks onboarding as complete. Sets local state immediately (optimistic)
@@ -145,11 +133,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         userId: user?.id ?? null,
         userName,
         userEmail: user?.email ?? null,
-        plan,
         onboardingComplete,
         loading,
         signOut,
-        refreshPlan,
         completeOnboarding,
       }}
     >

@@ -1,0 +1,86 @@
+```
+COMPLETE FIX — Two critical tasks:
+
+---
+
+## TASK 1: ADD TOS/PRIVACY CONSENT TEXT TO WELCOME.TSX
+
+Edit src/pages/Welcome.tsx.
+
+Find this exact section:
+
+```
+                <button
+                  type="submit"
+                  disabled={submitting || !name.trim() || !email.trim() || password.length < 6}
+                  className="w-full h-12 mt-1 rounded-xl bg-teal-600 hover:bg-teal-500 active:scale-[0.98] text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_24px_-6px_rgba(13,148,136,0.5)] hover:shadow-[0_0_30px_-4px_rgba(13,148,136,0.6)] hover:scale-[1.02]"
+                  data-testid="button-signup"
+                >
+                  {submitting ? "Creating account…" : "Get Started"}
+                </button>
+
+              <p className="text-center text-xs text-slate-500 mt-6">
+```
+
+Replace it with:
+
+```
+                <button
+                  type="submit"
+                  disabled={submitting || !name.trim() || !email.trim() || password.length < 6}
+                  className="w-full h-12 mt-1 rounded-xl bg-teal-600 hover:bg-teal-500 active:scale-[0.98] text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_24px_-6px_rgba(13,148,136,0.5)] hover:shadow-[0_0_30px_-4px_rgba(13,148,136,0.6)] hover:scale-[1.02]"
+                  data-testid="button-signup"
+                >
+                  {submitting ? "Creating account…" : "Get Started"}
+                </button>
+
+                <p className="text-center text-xs text-slate-500 mt-4">
+                  By signing up, you agree to our{" "}
+                  <a href="/terms" className="text-teal-400 hover:text-teal-300 underline transition-colors">
+                    Terms of Service
+                  </a>
+                  {" "}and{" "}
+                  <a href="/privacy" className="text-teal-400 hover:text-teal-300 underline transition-colors">
+                    Privacy Policy
+                  </a>
+                  .
+                </p>
+
+              <p className="text-center text-xs text-slate-500 mt-6">
+```
+
+---
+
+## TASK 2: REMOVE ALL PAYWALL / SUBSCRIPTION / ADS CODE
+
+Search the entire src/ directory for these keywords and delete any imports, components, or logic related to them:
+- "paywall"
+- "upgrade"
+- "subscription"
+- "isPro"
+- "isSubscribed"
+- "hasPremium"
+- "plan"
+- "tier"
+- "ad"
+- "banner"
+- "AdSense"
+- "locked"
+- "restricted"
+
+Specifically check these files and remove all paywall/ads/subscription code:
+- src/pages/Dashboard.tsx
+- src/pages/Results.tsx
+- src/pages/Retake.tsx
+- src/components/ (search for any paywall or ad components)
+
+Delete the components entirely. Delete any conditional logic like `if (isPro)` or `if (isSubscribed)` that gates features. Delete any modal, overlay, or button that says "Upgrade" or "Unlock".
+
+Make sure:
+- Dashboard loads fully for all logged-in users with no modals
+- Results page shows the full AI routine for all users with no locked state
+- Retake works end-to-end with no gates
+- No ads or upgrade prompts appear anywhere
+
+After all deletions, do a full build check to confirm there are no broken imports or TypeScript errors.
+```
