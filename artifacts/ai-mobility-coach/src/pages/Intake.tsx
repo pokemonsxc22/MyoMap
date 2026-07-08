@@ -7,6 +7,7 @@ import { SCREEN_QUESTIONS } from "@/lib/movementScreen";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { incrementAssessmentCount } from "@/lib/subscription";
+import { authedFetch } from "@/lib/apiClient";
 
 const cardVariants = {
   hidden:  { opacity: 0, y: 24 },
@@ -92,12 +93,10 @@ export default function Intake() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/analyze", {
+      const res = await authedFetch("/api/analyze", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
           ...form, sessionId,
-          userId:        userId ?? null,
           betters:       form.betters,
           injuryHistory: form.injuryHistory,
           injuryDetails: form.injuryDetails,

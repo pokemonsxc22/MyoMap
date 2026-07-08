@@ -11,6 +11,7 @@ import { type ComparisonResult } from "@/lib/movementScreen";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
 import { incrementAiMessageCount } from "@/lib/subscription";
+import { authedFetch } from "@/lib/apiClient";
 import ReactMarkdown from "react-markdown";
 
 const fadeInUp = {
@@ -185,9 +186,8 @@ export default function Progress() {
 
     const outgoing = [...chatMessages, { role: "user" as const, content: question }];
     try {
-      const res = await fetch("/api/progress-chat", {
+      const res = await authedFetch("/api/progress-chat", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: outgoing,
           context: {

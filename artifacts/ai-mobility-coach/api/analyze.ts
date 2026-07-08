@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sanitizeText, sanitizeStringArray } from "./_lib/sanitize.js";
 import { saveAssessment } from "./_lib/supabase.js";
 import { callGroq } from "./_lib/groq.js";
+import { verifyAuth } from "./_lib/auth.js";
+import { setSecurityHeaders, checkSizeLimit, checkRateLimit } from "./_lib/security.js";
 
 const LABELS: Record<string, string> = {
   "lower-back": "lower back", "mid-back": "mid back", "upper-back": "upper back",
@@ -63,8 +65,23 @@ function buildScreenLine(id: string, answer: "yes" | "no"): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setSecurityHeaders(res);
+
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  if (!checkSizeLimit(req, res)) return;
+
+  const { userId, error: authError } = await verifyAuth(req);
+  if (authError || !userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  if (!checkRateLimit(`analyze_${userId}`, 20, 5 * 60 * 1000)) {
+    res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
     return;
   }
 
@@ -83,7 +100,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       injuryDetails: rawInjuryDetails,
       screen:        rawScreen,
       sessionId:     rawSessionId,
-      userId:        rawUserId,
     } = req.body as Record<string, unknown>;
 
     const painArea      = sanitizeText(rawPainArea, 100);
@@ -95,7 +111,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const injuryHistory = sanitizeText(rawInjuryHistory, 10);
     const injuryDetails = sanitizeText(rawInjuryDetails, 500);
     const sessionId     = sanitizeText(rawSessionId, 200);
-    const userId        = sanitizeText(rawUserId, 200);
     const worsens       = sanitizeStringArray(rawWorsens, 100);
     const betters       = sanitizeStringArray(rawBetters, 100);
     const severity =
@@ -174,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     void saveAssessment({
       id:            assessmentId,
-      user_id:       userId || null,
+      user_id:       userId,
       session_id:    sessionId || null,
       pain_location: painArea,
       duration:      duration || null,

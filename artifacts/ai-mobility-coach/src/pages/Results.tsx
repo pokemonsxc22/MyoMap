@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
 import { incrementAiMessageCount } from "@/lib/subscription";
+import { authedFetch } from "@/lib/apiClient";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -209,9 +210,8 @@ export default function Results() {
       const stored = sessionStorage.getItem("mobilityFormData");
       const formCtx = stored ? (JSON.parse(stored) as Record<string, unknown>) : {};
 
-      const res = await fetch("/api/followup", {
+      const res = await authedFetch("/api/followup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: outgoing,
           context: { ...formCtx, routine: sessionStorage.getItem("mobilityRoutine") ?? "" },
@@ -227,9 +227,8 @@ export default function Results() {
       if (exercises !== null) {
         setOverrideExercises(exercises);
         if (assessmentId) {
-          void fetch(`/api/assessments/${assessmentId}/exercises`, {
+          void authedFetch(`/api/assessments/${assessmentId}/exercises`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ exercises }),
           });
         }
@@ -296,9 +295,8 @@ export default function Results() {
     if (!instructionCache[exerciseNum] && instructionLoading !== exerciseNum) {
       setInstructionLoading(exerciseNum);
       try {
-        const res = await fetch("/api/exercise-instructions", {
+        const res = await authedFetch("/api/exercise-instructions", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ exerciseName }),
         });
         const data = (await res.json()) as { instructions?: string };

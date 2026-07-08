@@ -1,0 +1,230 @@
+SECURITY HARDENING — Make the app production-safe against common attacks:
+
+---
+
+## 1. API ENDPOINT SECURITY — ALL VERCEL FUNCTIONS
+
+For EVERY serverless function in artifacts/ai-mobility-coach/api/:
+
+### A. Validate auth token on every request
+At the start of each handler, extract and verify the user's auth token:
+
+```javascript
+const authHeader = req.headers.authorization;
+if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  return res.status(401).json({ error: "Unauthorized" });
+}
+
+const token = authHeader.slice(7);
+const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+if (authError || !user) {
+  return res.status(401).json({ error: "Invalid token" });
+}
+
+const userId = user.id;
+```
+
+Then use `userId` for all database queries to ensure users can only access their own data.
+
+### B. Validate all incoming request data
+Before using any data from req.body, validate it:
+- Check required fields exist
+- Check data types (email should be string, arrays should be arrays, etc.)
+- Check string lengths (no 10MB payloads)
+- Reject unexpected fields
+
+Example:
+```javascript
+const { email, name, password } = req.body;
+if (!email || typeof email !== "string" || email.length > 254) {
+  return res.status(400).json({ error: "Invalid email" });
+}
+if (!name || typeof name !== "string" || name.length > 255) {
+  return res.status(400).json({ error: "Invalid name" });
+}
+```
+
+### C. Add request size limit
+At the top of each handler:
+```javascript
+if (req.headers["content-length"] && parseInt(req.headers["content-length"]) > 1000000) {
+  return res.status(413).json({ error: "Payload too large" });
+}
+```
+
+### D. Prevent timing attacks on auth endpoints
+When checking passwords or tokens, always hash/compare in a way that doesn't leak timing information. Use constant-time comparison (Node.js crypto.timingSafeEqual) if doing any manual token/secret comparison.
+
+### E. Set security headers on responses
+```javascript
+res.setHeader("X-Content-Type-Options", "nosniff");
+res.setHeader("X-Frame-Options", "DENY");
+res.setHeader("X-XSS-Protection", "1; mode=block");
+res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+```
+
+---
+
+## 2. RATE LIMITING — NON-AI ENDPOINTS
+
+Add rate limiting to prevent brute force attacks on:
+- Sign up endpoint (/api/auth/signup or equivalent)
+- Sign in endpoint (/api/auth/signin or equivalent)
+- Password reset endpoint
+
+Use a simple memory-based rate limiter:
+
+```javascript
+const requestCounts = new Map();
+
+function checkRateLimit(key, maxRequests, windowMs) {
+  const now = Date.now();
+  if (!requestCounts.has(key)) {
+    requestCounts.set(key, []);
+  }
+  
+  const requests = requestCounts.get(key);
+  const recentRequests = requests.filter(t => now - t < windowMs);
+  
+  if (recentRequests.length >= maxRequests) {
+    return false;
+  }
+  
+  recentRequests.push(now);
+  requestCounts.set(key, recentRequests);
+  return true;
+}
+
+// In signup handler:
+const email = req.body.email;
+if (!checkRateLimit(`signup_${email}`, 5, 3600000)) { // 5 signups per hour per email
+  return res.status(429).json({ error: "Too many signup attempts. Try again later." });
+}
+```
+
+---
+
+## 3. DATABASE RLS VERIFICATION
+
+Run this query in Supabase SQL Editor to confirm all RLS policies are correct:
+
+```sql
+SELECT schemaname, tablename, rowsecurity 
+FROM pg_tables 
+WHERE schemaname = 'public' 
+ORDER BY tablename;
+```
+
+All rows must show rowsecurity = true. If any show false, enable it:
+```sql
+ALTER TABLE public.[table_name] ENABLE ROW LEVEL SECURITY;
+```
+
+Then verify no overly-permissive policies exist. Run:
+```sql
+SELECT table_name, policyname, permissive, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+ORDER BY table_name, policyname;
+```
+
+Any policy that uses `true` as the qual (meaning it allows all rows) is too permissive. Replace with auth-based checks like:
+```sql
+CREATE POLICY "Users can only view own data"
+  ON public.users FOR SELECT
+  USING (auth.uid() = id);
+```
+
+---
+
+## 4. INPUT VALIDATION — FRONTEND
+
+In React components that accept user input (name, email, assessment answers), add basic validation:
+
+```javascript
+function validateEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email) && email.length <= 254;
+}
+
+function validateName(name) {
+  return typeof name === "string" && name.trim().length > 0 && name.length <= 255;
+}
+
+// In submit handlers:
+if (!validateEmail(email)) {
+  setError("Please enter a valid email.");
+  return;
+}
+if (!validateName(name)) {
+  setError("Please enter a valid name.");
+  return;
+}
+```
+
+Do not rely on frontend validation alone — the backend must also validate.
+
+---
+
+## 5. ENVIRONMENT VARIABLES — SECURITY CHECK
+
+Verify that:
+- No API keys, secrets, or credentials are hardcoded in the frontend code
+- SUPABASE_SERVICE_ROLE_KEY is ONLY in Vercel env vars, never in frontend env
+- GROQ_API_KEY is ONLY in Vercel env vars, never exposed to frontend
+- All sensitive values use `process.env` (not `import.meta.env.VITE_*`)
+
+Search the entire codebase for:
+- Hardcoded strings that look like API keys (long random strings)
+- Any secret being imported or logged
+
+If any secrets are exposed, rotate them immediately in Supabase and Groq consoles.
+
+---
+
+## 6. XSS PREVENTION — FRONTEND
+
+Ensure no user-submitted data is rendered as raw HTML:
+- When displaying user names, assessment answers, or AI-generated text, use React's default text rendering (not innerHTML or dangerouslySetInnerHTML)
+- Sanitize any markdown or formatted output using a library like `DOMPurify` if rendering user content as HTML
+
+Example (BAD):
+```javascript
+<div dangerouslySetInnerHTML={{ __html: userInput }} />
+```
+
+Example (GOOD):
+```javascript
+<div>{userInput}</div>
+```
+
+---
+
+## 7. CORS (if needed)
+
+If the frontend and backend are on different domains, add CORS headers in each Vercel function:
+
+```javascript
+res.setHeader("Access-Control-Allow-Origin", "https://myomapai.com");
+res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+if (req.method === "OPTIONS") {
+  return res.status(200).end();
+}
+```
+
+---
+
+## FINAL CHECKLIST
+
+After making all changes:
+- [ ] All Vercel functions validate auth tokens
+- [ ] All Vercel functions validate input data types and sizes
+- [ ] Rate limiting on sign-up and sign-in endpoints
+- [ ] All RLS enabled on every table
+- [ ] No API keys exposed in frontend
+- [ ] No hardcoded secrets in code
+- [ ] All error messages are generic (don't leak info like "user not found")
+- [ ] Build succeeds with no errors

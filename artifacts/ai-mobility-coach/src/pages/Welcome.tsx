@@ -40,6 +40,11 @@ export default function Welcome() {
     const trimEmail = email.trim();
     if (!trimName)           { setError("Full name is required."); return; }
     if (!trimEmail)          { setError("Email address is required."); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimEmail) || trimEmail.length > 254) {
+      setError("Please enter a valid email address.");
+      return;
+    }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
 
     setSubmitting(true);

@@ -11,6 +11,7 @@ import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { incrementAiMessageCount } from "@/lib/subscription";
+import { authedFetch } from "@/lib/apiClient";
 import InfoTooltip from "@/components/InfoTooltip";
 import MobilityScoreCard from "@/components/MobilityScoreCard";
 import { formatDistanceToNow } from "date-fns";
@@ -216,9 +217,8 @@ export default function Dashboard() {
     setTimeout(scrollChatToBottom, 30);
 
     try {
-      const res = await fetch("/api/daily-checkin", {
+      const res = await authedFetch("/api/daily-checkin", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ message: msg, conversationHistory: outgoing.slice(0, -1) }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };

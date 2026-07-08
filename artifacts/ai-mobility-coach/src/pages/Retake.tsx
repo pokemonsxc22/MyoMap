@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { SCREEN_QUESTIONS, computeComparison } from "@/lib/movementScreen";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/contexts/UserContext";
+import { authedFetch } from "@/lib/apiClient";
 
 const fadeInUp = {
   hidden:  { opacity: 0, y: 24 },
@@ -136,9 +137,8 @@ export default function Retake() {
     try {
       const sid = originalData.sessionId ?? sessionStorage.getItem("mobilitySessionId");
       if (sid) {
-        await fetch("/api/retake", {
+        await authedFetch("/api/retake", {
           method:  "POST",
-          headers: { "Content-Type": "application/json" },
           body:    JSON.stringify({ sessionId: sid, screen }),
         });
       }

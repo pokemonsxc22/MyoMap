@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sanitizeText } from "./_lib/sanitize.js";
 import { callGroq } from "./_lib/groq.js";
+import { verifyAuth } from "./_lib/auth.js";
+import { setSecurityHeaders, checkSizeLimit, checkRateLimit } from "./_lib/security.js";
 
 const SYSTEM_PROMPT = `You are Myomap's daily check-in assistant. The user will describe how their body feels today or what happened during their workout or activity. Listen carefully and ask one clarifying question if needed. When you have enough information to suggest routine changes, append a JSON block at the very end of your response on its own line in this exact format (no markdown fences, raw JSON only):
 {"update_routine": {"muscle_group": "lower_back", "changes": "brief description of what changed and why", "new_exercises": [{"name":"Exercise Name","sets":3,"reps":10,"notes":"Brief instructions"}]}}
@@ -12,8 +14,23 @@ interface ChatMessage {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setSecurityHeaders(res);
+
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  if (!checkSizeLimit(req, res)) return;
+
+  const { userId, error: authError } = await verifyAuth(req);
+  if (authError || !userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  if (!checkRateLimit(`daily-checkin_${userId}`, 30, 5 * 60 * 1000)) {
+    res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
     return;
   }
 
