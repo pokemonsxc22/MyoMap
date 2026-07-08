@@ -111,13 +111,7 @@ export default function TermsOfService() {
 
           <section>
             <h2 className="text-base font-bold text-white mb-2">10. Contact</h2>
-            <p>
-              For questions about these Terms, contact us at{" "}
-              <a href="mailto:support@myomap.app" className="text-teal-400 hover:underline">
-                support@myomap.app
-              </a>
-              .
-            </p>
+            <p>For questions about these Terms, contact us through the app.</p>
           </section>
         </div>
       </div>

@@ -92,11 +92,7 @@ export default function PrivacyPolicy() {
               <li>Opt out of non-essential communications</li>
             </ul>
             <p className="mt-3">
-              To exercise any of these rights, email{" "}
-              <a href="mailto:privacy@myomap.app" className="text-teal-400 hover:underline">
-                privacy@myomap.app
-              </a>
-              .
+              To exercise any of these rights, contact us through the app.
             </p>
           </section>
 
@@ -128,13 +124,7 @@ export default function PrivacyPolicy() {
 
           <section>
             <h2 className="text-base font-bold text-white mb-2">10. Contact</h2>
-            <p>
-              For privacy-related questions, email{" "}
-              <a href="mailto:privacy@myomap.app" className="text-teal-400 hover:underline">
-                privacy@myomap.app
-              </a>
-              .
-            </p>
+            <p>For privacy-related questions, contact us through the app.</p>
           </section>
         </div>
       </div>
