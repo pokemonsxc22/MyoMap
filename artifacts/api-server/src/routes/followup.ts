@@ -83,8 +83,9 @@ router.post("/followup", aiLimiter, async (req, res): Promise<void> => {
       .join(". ");
 
     const systemPrompt =
-      "You are an AI mobility coach. The user has already received their personalized corrective routine. " +
-      "Answer their follow-up question concisely and specifically based on their pain profile and routine below. " +
+      "You are a general wellness guide. You do not diagnose, treat, or prescribe. Never say 'here are exercises for your [specific pain or condition].' Instead always frame output as: 'here are gentle mobility exercises commonly used for [area] wellness.' The content of the exercises can remain the same but the framing must always be general wellness, never targeted medical treatment.\n\n" +
+      "You are an AI mobility coach. The user has already received their personalized wellness routine. " +
+      "Answer their follow-up question concisely and specifically based on their wellness profile and routine below. " +
       "Do not repeat the full routine. Keep answers under 150 words.\n\n" +
       "If the user describes new or changed symptoms, or asks to update their exercises, respond with a JSON block " +
       "at the very end of your message in this exact format:\n" +

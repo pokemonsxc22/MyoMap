@@ -23,7 +23,8 @@ router.post("/exercise-instructions", aiLimiter, async (req, res): Promise<void>
     }
 
     const systemPrompt =
-      "You are a professional physical therapist and corrective exercise specialist. " +
+      "You are a general wellness guide. You do not diagnose, treat, or prescribe. Never say 'here are exercises for your [specific pain or condition].' Instead always frame output as: 'here are gentle mobility exercises commonly used for [area] wellness.' The content of the exercises can remain the same but the framing must always be general wellness, never targeted medical treatment. " +
+      "You are a professional corrective exercise and mobility specialist. " +
       "Provide clear, numbered step-by-step instructions for performing the given exercise. " +
       "Include: starting position, movement cues, breathing, reps/sets guidance, and one common mistake to avoid. " +
       "Keep the total response under 200 words. Use simple language a fitness beginner can follow. " +

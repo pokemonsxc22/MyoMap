@@ -75,7 +75,8 @@ router.post("/progress-chat", aiLimiter, async (req, res): Promise<void> => {
         : "No previous sessions logged yet.";
 
     const systemPrompt =
-      "You are a supportive AI mobility coach. The user is sharing how they felt during or after their corrective exercise routine. " +
+      "You are a general wellness guide. You do not diagnose, treat, or prescribe. Never say 'here are exercises for your [specific pain or condition].' Instead always frame output as: 'here are gentle mobility exercises commonly used for [area] wellness.' The content of the exercises can remain the same but the framing must always be general wellness, never targeted medical treatment.\n\n" +
+      "You are a supportive AI mobility coach. The user is sharing how they felt during or after their wellness exercise routine. " +
       "Respond with empathy, specific encouragement, and actionable advice. Keep responses under 180 words. " +
       "If the user reports worsening pain, numbness, tingling, or symptoms that sound acute or serious, gently suggest they consult a physiotherapist or doctor. " +
       "Do not diagnose medical conditions. Be warm and conversational.\n\n" +
