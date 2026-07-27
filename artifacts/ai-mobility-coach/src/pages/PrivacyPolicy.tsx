@@ -18,6 +18,20 @@ export default function PrivacyPolicy() {
         <p className="text-sm text-slate-400 mb-8">Last updated: June 2025</p>
 
         <div className="space-y-8 text-slate-300 text-sm leading-relaxed">
+          <section className="border border-amber-500/30 bg-amber-500/5 rounded-xl p-5">
+            <h2 className="text-base font-bold text-amber-400 mb-2">Medical Disclaimer</h2>
+            <p>
+              MyoMap provides general wellness and mobility information only. The content on this
+              platform, including all exercise guidance and movement assessments, is not medical
+              advice and is not a substitute for professional medical advice, diagnosis, or
+              treatment. Always consult a licensed physician or qualified healthcare provider before
+              beginning any new exercise program, particularly if you have a pre-existing medical
+              condition, injury, or chronic pain. Use of MyoMap is entirely at your own risk. MyoMap
+              and its creators are not responsible for any injury or adverse outcome resulting from
+              use of this platform.
+            </p>
+          </section>
+
           <section>
             <h2 className="text-base font-bold text-white mb-2">1. Information We Collect</h2>
             <p>We collect the following categories of information:</p>
