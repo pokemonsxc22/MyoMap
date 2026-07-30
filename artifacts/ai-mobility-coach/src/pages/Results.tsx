@@ -191,6 +191,10 @@ export default function Results() {
   const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     if (rateLimitCooldown <= 0) return;
     const t = setTimeout(() => setRateLimitCooldown((s) => Math.max(0, s - 1)), 1000);
     return () => clearTimeout(t);
@@ -429,6 +433,9 @@ export default function Results() {
               Results
             </span>
             <h1 className="text-3xl font-black leading-tight">Your Mobility Assessment</h1>
+            <p className="mt-3 text-xs text-muted-foreground/50 leading-relaxed">
+              MyoMap provides general wellness information only and is not a substitute for professional medical advice. Consult a licensed physician before beginning any new exercise program.
+            </p>
           </motion.div>
 
           {/* ── AI Chat (top) ── */}

@@ -635,6 +635,9 @@ export default function Intake() {
                 </>
               )}
             </Button>
+            <p className="text-xs text-slate-500/60 text-center mt-3 leading-relaxed px-2">
+              MyoMap provides general wellness guidance only. This routine is not medical advice. Always consult a doctor before starting any new exercise program. Use at your own risk.
+            </p>
             {!isValid && (
               <p className="text-xs text-slate-600 text-center mt-3">
                 {11 - answeredCount} question{11 - answeredCount !== 1 ? "s" : ""} remaining
