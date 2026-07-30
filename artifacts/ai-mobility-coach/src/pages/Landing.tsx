@@ -166,6 +166,12 @@ export default function Landing() {
         >
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.div variants={fadeUp}>
+              <p className="text-[64px] md:text-[96px] font-extrabold text-white leading-none tracking-[-2px] text-center mb-6">
+                MyoMap
+              </p>
+            </motion.div>
+
+            <motion.div variants={fadeUp}>
               <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-sm font-semibold text-teal-400 mb-8 tracking-wide">
                 <Zap className="w-3.5 h-3.5" />
                 AI-Powered Mobility Coaching
