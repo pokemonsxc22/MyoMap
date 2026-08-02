@@ -417,6 +417,9 @@ export default function Landing() {
             <Link href="/privacy" style={{ fontSize: 12, color: "#6b7280", textDecoration: "underline" }}>Privacy Policy</Link>
           </div>
         </div>
+        <p className="text-center text-sm text-slate-600 mt-6">
+          Built by Sohan Cherukuri and Mukil Ashok
+        </p>
       </footer>
     </div>
   );
